@@ -41,7 +41,7 @@ export default function App() {
 
     <div class='flex p-2 gap-2'>
       <div class='flex-2'>
-        <Editor/>
+        <Editor on_save_program={on_program_changed}/>
       </div>
       <div class='flex-2 max-h-100'>
         <div class='flex flex-col'>

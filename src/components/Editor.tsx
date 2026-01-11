@@ -25,21 +25,22 @@ type EditorState = {
   lines: Line[]
 }
 
-export function Editor() {
+export function Editor(props: { on_save_program: (_: string) => void }) {
     return (<>
         <EditorProvider>
-            <EditorWithParser></EditorWithParser>
+            <EditorWithParser on_save_program={props.on_save_program}></EditorWithParser>
         </EditorProvider></>
     )
 }
 
-function EditorWithParser() {
+function EditorWithParser(props: { on_save_program: (_: string) => void}) {
 
-    const [state , { load_program, handle_key_down }] = useEditor()
+    const [state , { load_program, handle_key_down, set_on_save_program_callback }] = useEditor()
 
   onMount(() => {
     load_program()
     focus_on_editor()
+    set_on_save_program_callback(props.on_save_program)
   })
 
   let $el!: HTMLDivElement
@@ -146,6 +147,7 @@ type EditorStoreState = {
 type EditorStoreActions = {
     load_program(): void
     handle_key_down: (e: KeyboardEvent) => void
+    set_on_save_program_callback: (fn: (_: string) => void) => void
 }
 
 type EditorStore = [EditorStoreState, EditorStoreActions]
@@ -396,6 +398,7 @@ function createEditorStore(): EditorStore {
         set_persisted_program('program', get_full_program())
         set_persisted_program('i_cursor', state.i_cursor)
         set_persisted_program('i_line', state.i_line)
+        on_save_program_callback(get_full_program())
       })
     }
   }
@@ -662,9 +665,15 @@ function createEditorStore(): EditorStore {
         }
     }
 
+    let on_save_program_callback: (_: string) => void = () => {}
+    const set_on_save_program_callback = (fn: (_: string) => void) => {
+        on_save_program_callback = fn
+    }
+
     return [res_state, {
         load_program,
-        handle_key_down
+        handle_key_down,
+        set_on_save_program_callback
     }]
 }
 
