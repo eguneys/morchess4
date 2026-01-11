@@ -17,11 +17,12 @@ type Mode = 'normal' | 'edit' | 'command'
 type Motion = 'delete' | null
 
 type EditorState = {
-  motion: Motion,
-  mode: Mode,
-  command: string,
-  i_line: number,
-  i_cursor: number,
+  camera_y: number
+  motion: Motion
+  mode: Mode
+  command: string
+  i_line: number
+  i_cursor: number
   lines: Line[]
 }
 
@@ -44,7 +45,9 @@ function EditorWithParser(props: EditorProps) {
         load_program, 
         handle_key_down, 
         set_on_save_program_callback,
-        set_on_column_under_cursor_callback
+        set_on_column_under_cursor_callback,
+        set_on_cursor_change_callback,
+        scroll_camera_y
     }] = useEditor()
 
   onMount(() => {
@@ -52,7 +55,30 @@ function EditorWithParser(props: EditorProps) {
     focus_on_editor()
     set_on_save_program_callback(props.on_save_program)
     set_on_column_under_cursor_callback(props.on_set_column_under_cursor)
+
+
+    bounds = $el.getBoundingClientRect()
+    set_on_cursor_change_callback(on_cursor_change)
+
   })
+
+  const on_cursor_change = () => {
+    let $cursor = $el.querySelector('.cursor')
+    if (!$cursor || !bounds) {
+        return
+    }
+
+    let rect = $cursor.getBoundingClientRect()
+
+    if (bounds.bottom - rect.bottom < 130) {
+        scroll_camera_y(1)
+    } 
+    if (rect.top - bounds.top < 130) {
+        scroll_camera_y(-1)
+    }
+  }
+
+  let bounds: DOMRect
 
   let $el!: HTMLDivElement
   let focus_on_editor = () => $el.focus()
@@ -61,7 +87,9 @@ function EditorWithParser(props: EditorProps) {
   <div ref={$el} tabIndex={1} class='flex flex-col space-mono-regular editor bg-slate-800 w-full h-full text-white cursor-text' onMouseDown={() => focus_on_editor} onKeyDown={handle_key_down}>
     <div class='flex flex-col overflow-hidden w-100'>
     <For each={state.lines}>{ (block, i) => 
-       <Block mode={state.mode} block={block} cursor={i() === state.i_line ? state.i_cursor : undefined}/>
+        <Show when={i() >= state.camera_y}>
+            <Block mode={state.mode} block={block} cursor={i() === state.i_line ? state.i_cursor : undefined} />
+        </Show>
     }</For>
     </div>
     <div class='flex-1 bg-slate-800'></div>
@@ -80,7 +108,7 @@ function Block(props: { block: Line, cursor?: number, mode: Mode }) {
 
   const in_token = (i: number) => meta()?.tokens.find(_ => _.begin_char <= i && i < _.end_char)
   return (<>
-    <div class='whitespace-pre-wrap'>
+    <div class='whitespace-pre'>
       <For each={chars()}>{(char, i) =>
         <Char in_token={in_token(i())} char={char} cursor={i() === props.cursor ? { mode: props.mode } : undefined}></Char>
       }</For>
@@ -104,7 +132,7 @@ type Cursor = {
   mode: Mode
 }
 function Cursor(props: { cursor: Cursor, char: string }) {
-  return <span class={`animate-[pulse.8s_linear_infinite] left-0 absolute h-full ${props.cursor.mode === 'normal' ? 'w-full bg-amber-800' : 'w-0.5 bg-emerald-500'}`}></span>
+  return <span class={`cursor animate-[pulse.8s_linear_infinite] left-0 absolute h-full ${props.cursor.mode === 'normal' ? 'w-full bg-amber-800' : 'w-0.5 bg-emerald-500'}`}></span>
 }
 
 
@@ -151,6 +179,7 @@ type Token = {
 
 
 type EditorStoreState = {
+    camera_y: number,
     meta: Record<LineId, LineMetadata>
     command: string,
     i_cursor: number,
@@ -164,6 +193,8 @@ type EditorStoreActions = {
     handle_key_down: (e: KeyboardEvent) => void
     set_on_save_program_callback: (fn: (_: string) => void) => void
     set_on_column_under_cursor_callback: (fn: (_: string) => void) => void
+    set_on_cursor_change_callback: (fn: () => void) => void
+    scroll_camera_y: (_: number) => void
 }
 
 type EditorStore = [EditorStoreState, EditorStoreActions]
@@ -192,6 +223,7 @@ function createEditorStore(): EditorStore {
 
   let first_line: Line = line('hello')
   const [state, set_state] = createStore<EditorState>({
+    camera_y: 0,
     motion: null,
     command: '',
     mode: 'normal',
@@ -199,6 +231,10 @@ function createEditorStore(): EditorStore {
     i_cursor: 0,
     lines: [first_line]
   })
+
+  const scroll_camera_y = (delta: number) => {
+    set_state('camera_y', Math.min(Math.max(0, state.camera_y + delta), state.lines.length))
+  }
 
   const clamp_cursor_to_line = () => {
     if (state.i_line < 0) {
@@ -419,7 +455,7 @@ function createEditorStore(): EditorStore {
         set_persisted_program('program', get_full_program())
         set_persisted_program('i_cursor', state.i_cursor)
         set_persisted_program('i_line', state.i_line)
-        on_save_program_callback(get_full_program())
+        save_program()
       })
     }
   }
@@ -695,8 +731,15 @@ function createEditorStore(): EditorStore {
 
     }
 
+    function save_program() {
+        batch(() => {
+            on_save_program_callback(get_full_program())
+            set_column_under_cursor()
+        })
+    }
     function set_column_under_cursor() {
         on_set_column_under_cursor(find_column_under_cursor()??'')
+        on_cursor_change()
     }
 
     const InitParseState: ParseState = {
@@ -742,6 +785,9 @@ function createEditorStore(): EditorStore {
     }
 
     let res_state = {
+        get camera_y() {
+            return state.camera_y
+        },
         get meta() {
             return parser_state.meta
         },
@@ -772,11 +818,18 @@ function createEditorStore(): EditorStore {
         on_set_column_under_cursor = fn
     }
 
+    let on_cursor_change: () => void = () => {}
+    const set_on_cursor_change_callback = (fn: () => void) => {
+        on_cursor_change = fn
+    }
+
     return [res_state, {
+        scroll_camera_y,
         load_program,
         handle_key_down,
         set_on_save_program_callback,
-        set_on_column_under_cursor_callback
+        set_on_column_under_cursor_callback,
+        set_on_cursor_change_callback
     }]
 }
 

@@ -55,7 +55,9 @@ export default function App() {
     <div class='flex p-2 gap-2 h-130'>
       <div class='flex-2'>
         <div class='flex flex-col'>
+          <div class='h-150'>
           <Editor on_save_program={on_program_changed} on_set_column_under_cursor={on_set_column_under_cursor} />
+          </div>
           <Show when={editor_error()}>
           <div class='px-2 py-1 bg-red-500 text-white'>{editor_error()}</div>
           </Show>
@@ -79,8 +81,8 @@ function Relation(props: { fen: FEN, relation: RelationManager }) {
   const row_header = rows[0]
   return (
     <div class='relative overflow-x-auto'>
-      <div class='px-1 py-1 bg-amber-800 text-white tracking-wide'>{props.relation.name}</div>
-      <div class='overflow-y-auto max-h-30'>
+      <div class='px-1 py-1 bg-amber-800 text-white tracking-wide'>{props.relation.name}: {rows.length} rows</div>
+      <div class='overflow-y-auto max-h-40'>
         <table class='min-w-full divide-y divide-gray-200'>
           <thead class='bg-gray-50'>
           <Show when={row_header}>{row_header =>
@@ -140,6 +142,7 @@ function value_sensibles(pos: Position, m: Map<Column, number>) {
     switch (key) {
       case 'from':
       case 'to':
+      case 'to2':
       case 'square':
         res.push(square_name(value))
         break
