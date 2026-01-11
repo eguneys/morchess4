@@ -112,13 +112,16 @@ function Cursor(props: { cursor: Cursor, char: string }) {
 type ParseState = {
     in_fact: boolean
     in_idea: boolean
+    in_legal: boolean
     line: number
 }
 
 function state_equal(a: ParseState, b: ParseState) {
     if (a.in_fact === b.in_fact) {
         if (a.in_idea === b.in_idea) {
-            return true
+            if (a.in_legal === b.in_legal) {
+                return true
+            }
         }
     }
     return false
@@ -133,6 +136,7 @@ enum TokenType {
     Whitespace = 'Whitespace',
     BeginFact = 'Fact',
     BeginIdea = 'Idea',
+    BeginLegal = 'Legal',
     Path = 'Path',
     Newline = 'Newline'
 }
@@ -658,17 +662,10 @@ function createEditorStore(): EditorStore {
 
     const load_parser = (lines: Line[]) => {
 
-
-        let begin: ParseState = {
-            in_fact: false,
-            in_idea: false,
-            line: 0
-        }
-
         batch(() => {
             set_parser_state('meta', {})
             set_parser_state('states', {})
-            let state = begin
+            let state = InitParseState
             for (let i = 0; i < lines.length; i++) {
                 let [next_state, meta] = LineByLineParser(state, lines[i].content)
                 state = next_state
@@ -686,7 +683,7 @@ function createEditorStore(): EditorStore {
         for (let i = state.i_line; i >= 0; i--) {
             let block = state.lines[i]
             let meta = parser_state.meta[block.id]
-            let i_begin = meta.tokens.findIndex(_ => _.type === TokenType.BeginFact || _.type === TokenType.BeginIdea)
+            let i_begin = meta.tokens.findIndex(_ => _.type === TokenType.BeginFact || _.type === TokenType.BeginIdea || _.type === TokenType.BeginLegal)
             if (i_begin !== -1) {
                 for (let j = i_begin + 1; j < meta.tokens.length; j++) {
                     if (meta.tokens[j].type === TokenType.Path) {
@@ -705,6 +702,7 @@ function createEditorStore(): EditorStore {
     const InitParseState: ParseState = {
         in_fact: false,
         in_idea: false,
+        in_legal: false,
         line: 0
     }
 
@@ -788,7 +786,8 @@ function LineByLineParser(incoming_state: ParseState, line: string): [ParseState
     let parse_state = {
         line: incoming_state.line + 1,
         in_fact: incoming_state.in_fact,
-        in_idea: incoming_state.in_idea
+        in_idea: incoming_state.in_idea,
+        in_legal: incoming_state.in_legal
     }
 
     let tokens: Token[] = []
@@ -798,6 +797,8 @@ function LineByLineParser(incoming_state: ParseState, line: string): [ParseState
             parse_in_fact()
         } else if (incoming_state.in_idea) {
             parse_in_idea()
+        } else if (incoming_state.in_legal) {
+            parse_in_legal()
         } else {
             parse_begin_fact_or_idea()
         }
@@ -844,6 +845,30 @@ function LineByLineParser(incoming_state: ParseState, line: string): [ParseState
 
     function parse_in_idea() {
 
+
+        ;[begin_char, end_char, value] = parse_spaces()
+        if (begin_char !== end_char) {
+            tokens.push({ begin_char, end_char, type: TokenType.Whitespace, value })
+        }
+
+        if (peek_next_char() === undefined) {
+            tokens.push({ begin_char, end_char, type: TokenType.Newline, value })
+            parse_state.in_idea = false
+        }
+    }
+
+    function parse_in_legal() {
+
+
+        ;[begin_char, end_char, value] = parse_spaces()
+        if (begin_char !== end_char) {
+            tokens.push({ begin_char, end_char, type: TokenType.Whitespace, value })
+        }
+
+        if (peek_next_char() === undefined) {
+            tokens.push({ begin_char, end_char, type: TokenType.Newline, value })
+            parse_state.in_legal = false
+        }
     }
 
     function parse_begin_fact_or_idea() {
@@ -861,6 +886,9 @@ function LineByLineParser(incoming_state: ParseState, line: string): [ParseState
             } else if (value === 'idea') {
                 tokens.push({ begin_char, end_char, type: TokenType.BeginIdea, value })
                 parse_state.in_idea = true
+            } else if (value === 'legal') {
+                tokens.push({ begin_char, end_char, type: TokenType.BeginLegal, value })
+                parse_state.in_legal = true
             } else {
                 tokens.push({ begin_char, end_char, type: TokenType.Path, value })
             }
@@ -881,6 +909,9 @@ function LineByLineParser(incoming_state: ParseState, line: string): [ParseState
             } else if (value === 'idea') {
                 tokens.push({ begin_char, end_char, type: TokenType.BeginIdea, value })
                 parse_state.in_idea = true
+            } else if (value === 'legal') {
+                tokens.push({ begin_char, end_char, type: TokenType.BeginLegal, value })
+                parse_state.in_legal = true
             } else {
                 tokens.push({ begin_char, end_char, type: TokenType.Path, value })
             }
