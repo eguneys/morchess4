@@ -26,14 +26,22 @@ export default function App() {
       let pos = m.create_position(fen())
       let res = relations(m, pos, program())
       set_relations([...res.values()])
-    } catch (e) {
 
-      console.error(e)
+      on_set_column_under_cursor(column_under_cursor)
+      set_editor_error(undefined)
+    } catch (e) {
+      if (e instanceof Error) {
+        set_editor_error(e.message)
+      }
     }
   }
 
+  const [editor_error, set_editor_error] = createSignal<string | undefined>(undefined)
+
+  let column_under_cursor: Column = ''
   const on_set_column_under_cursor = (column: Column) => {
     set_relations(get_relations().sort((a, _) => a.name === column ? -1 : 0))
+    column_under_cursor = column
   }
 
   onMount(() => {
@@ -46,7 +54,12 @@ export default function App() {
 
     <div class='flex p-2 gap-2 h-130'>
       <div class='flex-2'>
-        <Editor on_save_program={on_program_changed} on_set_column_under_cursor={on_set_column_under_cursor}/>
+        <div class='flex flex-col'>
+          <Editor on_save_program={on_program_changed} on_set_column_under_cursor={on_set_column_under_cursor} />
+          <Show when={editor_error()}>
+          <div class='px-2 py-1 bg-red-500 text-white'>{editor_error()}</div>
+          </Show>
+        </div>
       </div>
       <div class='flex-2 min-h-0 overflow-y-auto'>
         <For each={get_relations()}>{relation =>
