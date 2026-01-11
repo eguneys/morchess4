@@ -44,18 +44,14 @@ export default function App() {
   return (<>
     <h1 class='text-3xl inter-500'>Mor Chess 4</h1>
 
-    <div class='flex p-2 gap-2'>
+    <div class='flex p-2 gap-2 h-130'>
       <div class='flex-2'>
         <Editor on_save_program={on_program_changed} on_set_column_under_cursor={on_set_column_under_cursor}/>
       </div>
-      <div class='flex-2 max-h-100'>
-        <div class='flex flex-col'>
-          <For each={get_relations()}>{ relation => 
-            <div class=''>
-              <Relation fen={fen()} relation={relation}></Relation>
-            </div>
-          }</For>
-        </div>
+      <div class='flex-2 min-h-0 overflow-y-auto'>
+        <For each={get_relations()}>{relation =>
+          <Relation fen={fen()} relation={relation}></Relation>
+        }</For>
       </div>
       <div class='flex-2'>
         <Chessboard fen={fen()}/>
@@ -65,19 +61,25 @@ export default function App() {
 }
 
 function Relation(props: { fen: FEN, relation: RelationManager }) {
-  let rows = props.relation.get_relation_starting_at_world_id(0).rows.slice(0, 3)
+  let rows = props.relation.get_relation_starting_at_world_id(0).rows.slice(0, 8)
 
   const row_header = rows[0]
   return (
-    <div class=''>
-      <div class='bg-amber-500'>{props.relation.name}</div>
-      <div class='flex flex-col'>
-        <Show when={row_header}>{ row_header =>
-          <RowHeader row_header={row_header()}></RowHeader>
-        }</Show>
-        <For each={rows}>{row => 
-          <Row fen={props.fen} row={row}></Row>
-        }</For>
+    <div class='relative overflow-x-auto'>
+      <div class='px-1 py-1 bg-amber-800 text-white tracking-wide'>{props.relation.name}</div>
+      <div class='overflow-y-auto max-h-30'>
+        <table class='min-w-full divide-y divide-gray-200'>
+          <thead class='bg-gray-50'>
+          <Show when={row_header}>{row_header =>
+            <RowHeader row_header={row_header()}></RowHeader>
+          }</Show>
+          </thead>
+          <tbody class='bg-white divide-y divide-gray-200'>
+          <For each={rows}>{row =>
+            <Row fen={props.fen} row={row}></Row>
+          }</For>
+          </tbody>
+        </table>
       </div>
     </div>
   )
@@ -89,14 +91,14 @@ function RowHeader(props: { row_header: Map<Column, number> }) {
   let has_move = props.row_header.get('from') !== undefined && props.row_header.get('to') !== undefined
   let keys = [...skip_world_ids(props.row_header).keys()]
   if (has_move) {
-    keys.push('line')
+    keys.unshift('line')
   }
 
-    return <div class='flex gap-2'>
+    return <tr class='overflow-y-scroll'>
       <For each={keys}>{(value) =>
-        <div class='flex gap-2'>{value}</div>
+        <th scope='col' class='px-6 py-2 text-left text-xs font-meidum text-gray-500 tracking-wider'>.{value}</th>
       }</For>
-    </div>
+    </tr>
 }
 
 type FEN = string
@@ -106,11 +108,11 @@ function Row(props: { fen: FEN, row: Map<Column, number> }) {
 
 
   return (<>
-    <div class='flex gap-2'>
+    <tr>
       <For each={values()}>{(value) =>
-        <div class='flex gap-2'>{value}</div>
+        <td class='px-6 py-0 whitespace-nowrap'>{value}</td>
       }</For>
-    </div>
+    </tr>
   </>)
 }
 
@@ -147,12 +149,14 @@ function value_sensibles(pos: Position, m: Map<Column, number>) {
   }
   let aa = extract_line(m)
 
+  let resaa = []
   let p2 = pos.clone()
   for (let a = 0; a < aa.length; a++) {
     let move = move_c_to_Move(aa[a])
-    res.push(makeSan(p2, move))
+    resaa.push(makeSan(p2, move))
     p2.play(move)
   }
+  res.unshift(resaa.join(' '))
   return res
 }
 
