@@ -91,7 +91,7 @@ function Editor() {
     if (state.i_line >= state.lines.length) {
       set_state('i_line', state.lines.length - 1)
     }
-    if (state.i_cursor >= state.lines[state.i_line].content.length) {
+    if (state.i_cursor > state.lines[state.i_line].content.length) {
       set_state('i_cursor', state.lines[state.i_line].content.length - 1)
     }
     if (state.i_cursor < 0) {
@@ -99,7 +99,7 @@ function Editor() {
     }
   }
 
-  const edit_break_line = () => {
+  const break_line_and_goto_it = () => {
     let content = state.lines[state.i_line].content.slice(0, state.i_cursor)
     let new_content = state.lines[state.i_line].content.slice(state.i_cursor)
 
@@ -122,6 +122,28 @@ function Editor() {
     })
   }
 
+  const delete_j_motion = () => {
+    batch(() => {
+      set_state('motion', null)
+
+      delete_full_line()
+      delete_full_line()
+    })
+  }
+
+  const delete_k_motion = () => {
+    batch(() => {
+      set_state('motion', null)
+
+      set_state('i_line', state.i_line - 1)
+      delete_full_line()
+      delete_full_line()
+      set_state('i_line', state.i_line + 1)
+    })
+  }
+
+
+
   const delete_full_line = () => {
     batch(() => {
       if (state.lines.length === 1) {
@@ -134,9 +156,25 @@ function Editor() {
     })
   }
 
+  const delete_rest_of_the_line = () => {
+    let content = state.lines[state.i_line].content.slice(0, state.i_cursor)
+
+    batch(() => {
+      set_state('lines', state.i_line, 'content', content)
+      clamp_cursor_to_line()
+    })
+  }
+
+  const delete_rest_of_the_line_and_enter_insert = () => {
+    batch(() => {
+      delete_rest_of_the_line()
+      set_state('mode', 'edit')
+    })
+  }
+
   const delete_text_backspace = () => {
     let content = state.lines[state.i_line].content
-    let new_content = content.slice(0, state.i_cursor) + content.slice(state.i_cursor + 1)
+    let new_content = content.slice(0, state.i_cursor - 1) + content.slice(state.i_cursor)
 
     batch(() => {
       set_state('lines', state.i_line, 'content', new_content)
@@ -144,9 +182,32 @@ function Editor() {
     })
   }
 
+  const enter_newline_and_goto_it = () => {
+    batch(() => {
+      set_state('lines', lines =>
+        lines.toSpliced(state.i_line + 1, 0, { content: ''})
+      )
+      set_state('i_line', state.i_line + 1)
+      set_state('i_cursor', 0)
+    })
+  }
+
+  const enter_newline_and_stay = () => {
+    batch(() => {
+      set_state('lines', lines =>
+        lines.toSpliced(state.i_line, 0, { content: ''})
+      )
+      //set_state('i_line', state.i_line)
+      //set_state('i_cursor', 0)
+      clamp_cursor_to_line()
+    })
+  }
+
+
+
   const insert_text = (key: string) => {
     let content = state.lines[state.i_line].content
-    let new_content = content.slice(0, state.i_cursor + 1) + key + content.slice(state.i_cursor + 1)
+    let new_content = content.slice(0, state.i_cursor) + key + content.slice(state.i_cursor)
 
     batch(() => {
       set_state('lines', state.i_line, 'content', new_content)
@@ -159,7 +220,7 @@ function Editor() {
     if (state.mode === 'edit') {
       handled = edit_mode(e.key, e.ctrlKey)
     } else if (state.mode === 'normal') {
-      handled = normal_mode(e.key)
+      handled = normal_mode(e.key, e.shiftKey)
     }
     if (handled) {
       e.preventDefault()
@@ -178,10 +239,21 @@ function Editor() {
     }
   }
 
-  const normal_mode = (key: string) => {
+  const normal_mode = (key: string, is_shift_down: boolean) => {
     switch (key) {
+      case 'c':
+      case 'C':
+        if (is_shift_down) {
+          delete_rest_of_the_line_and_enter_insert()
+        }
+        break
       case 'd':
-        enter_delete_motion()
+      case 'D':
+        if (is_shift_down) {
+          delete_rest_of_the_line()
+        } else {
+          enter_delete_motion()
+        }
         break
       case 'x':
         delete_text_forward()
@@ -192,21 +264,47 @@ function Editor() {
           clamp_cursor_to_line()
         })
         break
+      case 'o':
+      case 'O':
+        batch(() => {
+          if (is_shift_down) {
+            enter_newline_and_stay()
+          } else {
+            enter_newline_and_goto_it()
+          }
+          set_state('mode', 'edit')
+        })
+        break
       case 'j':
+        if (state.motion === 'delete') {
+          batch(() => {
+            delete_j_motion()
+            clamp_cursor_to_line()
+          })
+          break
+        }
         batch(() => {
           set_state('i_line', state.i_line + 1)
           clamp_cursor_to_line()
         })
         break
       case 'k':
+        if (state.motion === 'delete') {
+          batch(() => {
+            delete_k_motion()
+            clamp_cursor_to_line()
+          })
+          break
+        }
         batch(() => {
           set_state('i_line', state.i_line - 1)
           clamp_cursor_to_line()
         })
         break
       case 'a':
+      case 'A':
         batch(() => {
-          set_state('i_cursor', state.i_cursor + 1)
+          set_state('i_cursor', is_shift_down ? state.lines[state.i_line].content.length : state.i_cursor + 1)
           set_state('mode', 'edit')
         })
         break
@@ -234,8 +332,11 @@ function Editor() {
 
   const edit_ctrl_mode = (key: string) => {
     switch (key) {
+      case 'h':
+        delete_text_backspace()
+        break
       case 'j':
-        edit_break_line()
+        break_line_and_goto_it()
         break
       default:
         return false
@@ -248,6 +349,9 @@ function Editor() {
       return edit_ctrl_mode(key)
     }
     switch (key) {
+      case 'Enter':
+        break_line_and_goto_it()
+        return true
       case 'Backspace':
         delete_text_backspace()
         return true
@@ -259,7 +363,7 @@ function Editor() {
           if (key.length > 1) {
             return false
           }
-          if (/[a-zA-Z0-9 ]/.test(key)) {
+          if (/[a-zA-Z0-9 \.\=\!\_]/.test(key)) {
             insert_text(key)
             return true
           }
@@ -296,7 +400,7 @@ function Block(props: { block: Line, cursor?: number, mode: Mode }) {
 
   let chars = createMemo(() => props.block.content.split(''))
   return (<>
-    <div>
+    <div class='whitespace-pre-wrap'>
       <For each={chars()}>{(char, i) =>
         <Char char={char} cursor={i() === props.cursor ? { mode: props.mode } : undefined}></Char>
       }</For>
@@ -319,7 +423,7 @@ type Cursor = {
   mode: Mode
 }
 function Cursor(props: { cursor: Cursor, char: string }) {
-  return <span class={`left-0 absolute h-full ${props.cursor.mode === 'normal' ? 'w-full bg-amber-500' : 'w-0.5 bg-emerald-500'}`}></span>
+  return <span class={`left-0 absolute h-full ${props.cursor.mode === 'normal' ? 'w-full bg-amber-800' : 'w-0.5 bg-emerald-500'}`}></span>
 }
 
 function Relation(props: { fen: FEN, relation: RelationManager }) {
