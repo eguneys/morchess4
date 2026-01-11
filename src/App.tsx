@@ -2,7 +2,7 @@ import { createMemo, createSignal, For, onMount, Show } from "solid-js";
 import { Chessboard } from "./components/Chessboard";
 
 import wasm_url from './assets/wasm/hopefox.wasm?url'
-import { fen_pos, makeSan, piece, piece_c_to_piece, Position, PositionManager, RelationManager, relations, square, WHITE } from 'hopefox'
+import { fen_pos, make_move_from_to, makeSan, move_c_to_Move, piece, piece_c_to_piece, Position, PositionManager, RelationManager, relations, square, WHITE } from 'hopefox'
 import { makePersisted } from "@solid-primitives/storage";
 import { Editor } from "./components/Editor";
 
@@ -14,7 +14,7 @@ export default function App() {
     name: 'program'
   })
 
-  let [get_relations, set_relations] = createSignal<RelationManager[]>([])
+  let [get_relations, set_relations] = createSignal<RelationManager[]>([], { equals: false })
 
   let fen = () => 'r2q1rk1/p1p1bppp/2pp2b1/4p3/4n1PN/2NP3P/PPP2PK1/R1BQ1R2 w - - 0 12'
 
@@ -32,7 +32,12 @@ export default function App() {
     }
   }
 
+  const on_set_column_under_cursor = (column: Column) => {
+    set_relations(get_relations().sort((a, _) => a.name === column ? -1 : 0))
+  }
+
   onMount(() => {
+    //console.log(program())
     on_program_changed(program())
   })
 
@@ -41,7 +46,7 @@ export default function App() {
 
     <div class='flex p-2 gap-2'>
       <div class='flex-2'>
-        <Editor on_save_program={on_program_changed}/>
+        <Editor on_save_program={on_program_changed} on_set_column_under_cursor={on_set_column_under_cursor}/>
       </div>
       <div class='flex-2 max-h-100'>
         <div class='flex flex-col'>
@@ -84,7 +89,7 @@ function RowHeader(props: { row_header: Map<Column, number> }) {
   let has_move = props.row_header.get('from') !== undefined && props.row_header.get('to') !== undefined
   let keys = [...skip_world_ids(props.row_header).keys()]
   if (has_move) {
-    keys.unshift('move')
+    keys.push('line')
   }
 
     return <div class='flex gap-2'>
@@ -140,8 +145,26 @@ function value_sensibles(pos: Position, m: Map<Column, number>) {
         res.push(value)
     }
   }
-  if (from !== undefined && to !== undefined) {
-    res.unshift(makeSan(pos, { from, to }))
+  let aa = extract_line(m)
+
+  let p2 = pos.clone()
+  for (let a = 0; a < aa.length; a++) {
+    let move = move_c_to_Move(aa[a])
+    res.push(makeSan(p2, move))
+    p2.play(move)
+  }
+  return res
+}
+
+type Row = Map<Column, number>
+function extract_line(row: Row) {
+  let res = []
+  for (let i = 1; i < 8; i++) {
+    let key = i == 1 ? '' : i
+    if (!row.has('from' + key)) {
+      break
+    }
+    res.push(make_move_from_to(row.get('from' + key)!, row.get('to' + key)!))
   }
   return res
 }

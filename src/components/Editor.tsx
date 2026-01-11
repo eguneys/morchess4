@@ -25,22 +25,33 @@ type EditorState = {
   lines: Line[]
 }
 
-export function Editor(props: { on_save_program: (_: string) => void }) {
+type EditorProps = { 
+    on_set_column_under_cursor: (_: string) => void, 
+    on_save_program: (_: string) => void 
+}
+
+export function Editor(props: EditorProps) {
     return (<>
         <EditorProvider>
-            <EditorWithParser on_save_program={props.on_save_program}></EditorWithParser>
+            <EditorWithParser {...props}></EditorWithParser>
         </EditorProvider></>
     )
 }
 
-function EditorWithParser(props: { on_save_program: (_: string) => void}) {
+function EditorWithParser(props: EditorProps) {
 
-    const [state , { load_program, handle_key_down, set_on_save_program_callback }] = useEditor()
+    const [state , { 
+        load_program, 
+        handle_key_down, 
+        set_on_save_program_callback,
+        set_on_column_under_cursor_callback
+    }] = useEditor()
 
   onMount(() => {
     load_program()
     focus_on_editor()
     set_on_save_program_callback(props.on_save_program)
+    set_on_column_under_cursor_callback(props.on_set_column_under_cursor)
   })
 
   let $el!: HTMLDivElement
@@ -148,6 +159,7 @@ type EditorStoreActions = {
     load_program(): void
     handle_key_down: (e: KeyboardEvent) => void
     set_on_save_program_callback: (fn: (_: string) => void) => void
+    set_on_column_under_cursor_callback: (fn: (_: string) => void) => void
 }
 
 type EditorStore = [EditorStoreState, EditorStoreActions]
@@ -197,6 +209,7 @@ function createEditorStore(): EditorStore {
     if (state.i_cursor < 0) {
       set_state('i_cursor', 0)
     }
+    set_column_under_cursor()
   }
 
   const break_line_and_goto_it = () => {
@@ -597,6 +610,13 @@ function createEditorStore(): EditorStore {
             join_lines()
             break
         default:
+          if (key.length > 1) {
+            return false
+          }
+          if (/[a-zA-Z0-9 \.\=\!\_]/.test(key)) {
+            insert_text(key)
+            return true
+          }
             return false
     }
     return true
@@ -660,6 +680,26 @@ function createEditorStore(): EditorStore {
 
     const set_change_line = (index: number) => {
         updateAndRipple(index)
+    }
+
+    function find_column_under_cursor() {
+        for (let i = state.i_line; i >= 0; i--) {
+            let block = state.lines[i]
+            let meta = parser_state.meta[block.id]
+            let i_begin = meta.tokens.findIndex(_ => _.type === TokenType.BeginFact || _.type === TokenType.BeginIdea)
+            if (i_begin !== -1) {
+                for (let j = i_begin + 1; j < meta.tokens.length; j++) {
+                    if (meta.tokens[j].type === TokenType.Path) {
+                        return meta.tokens[j].value
+                    }
+                }
+            }
+        }
+
+    }
+
+    function set_column_under_cursor() {
+        on_set_column_under_cursor(find_column_under_cursor()??'')
     }
 
     const InitParseState: ParseState = {
@@ -729,10 +769,16 @@ function createEditorStore(): EditorStore {
         on_save_program_callback = fn
     }
 
+    let on_set_column_under_cursor: (_: string) => void = () => {}
+    const set_on_column_under_cursor_callback = (fn: (_: string) => void) => {
+        on_set_column_under_cursor = fn
+    }
+
     return [res_state, {
         load_program,
         handle_key_down,
-        set_on_save_program_callback
+        set_on_save_program_callback,
+        set_on_column_under_cursor_callback
     }]
 }
 
@@ -744,7 +790,6 @@ function LineByLineParser(incoming_state: ParseState, line: string): [ParseState
         in_fact: incoming_state.in_fact,
         in_idea: incoming_state.in_idea
     }
-
 
     let tokens: Token[] = []
 
