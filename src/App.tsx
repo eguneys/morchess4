@@ -61,13 +61,14 @@ export default function App() {
 
 
 type Line = { content: string }
-type Mode = 'normal' | 'edit'
+type Mode = 'normal' | 'edit' | 'command'
 
 type Motion = 'delete' | null
 
 type EditorState = {
   motion: Motion,
   mode: Mode,
+  command: string,
   i_line: number,
   i_cursor: number,
   lines: Line[]
@@ -78,6 +79,7 @@ function Editor() {
 
   const [state, set_state] = createStore<EditorState>({
     motion: null,
+    command: '',
     mode: 'normal',
     i_line: 0,
     i_cursor: 0,
@@ -217,13 +219,64 @@ function Editor() {
 
   const handle_key_down = (e: KeyboardEvent) => {
     let handled = false
-    if (state.mode === 'edit') {
+    if (state.mode === 'command') {
+      handled = command_mode(e.key)
+    } else if (state.mode === 'edit') {
       handled = edit_mode(e.key, e.ctrlKey)
     } else if (state.mode === 'normal') {
       handled = normal_mode(e.key, e.shiftKey)
     }
     if (handled) {
       e.preventDefault()
+    }
+  }
+
+  const command_mode = (key: string) => {
+    switch (key) {
+      case 'w':
+        set_state('command', 'w')
+        break
+      case 'Enter':
+        execute_command()
+        set_state('command', '')
+        set_state('mode', 'normal')
+        break
+    }
+  }
+
+  const [persisted_program, set_persisted_program] = makePersisted(createStore({
+    program: 'hello',
+    i_cursor: 0,
+    i_line: 0,
+  }), {
+    name: '.morchess4.program'
+  })
+
+  const load_program = () => {
+    let lines = persisted_program.program.split('\n').map(content => ({ content }))
+
+    batch(() => {
+      set_state('lines', lines)
+      set_state('i_line', persisted_program.i_line)
+      set_state('i_cursor', persisted_program.i_cursor)
+    })
+  }
+
+  const get_full_program = () => {
+    return state.lines.map(line => line.content).join('\n')
+  }
+
+  onMount(() => {
+    load_program()
+  })
+
+  const execute_command = () => {
+    if (state.command === 'w') {
+      batch(() => {
+        set_persisted_program('program', get_full_program())
+        set_persisted_program('i_cursor', state.i_cursor)
+        set_persisted_program('i_line', state.i_line)
+      })
     }
   }
 
@@ -241,6 +294,9 @@ function Editor() {
 
   const normal_mode = (key: string, is_shift_down: boolean) => {
     switch (key) {
+      case ':':
+        set_state('mode', 'command')
+        break
       case 'c':
       case 'C':
         if (is_shift_down) {
@@ -389,8 +445,8 @@ function Editor() {
     }</For>
     </div>
     <div class='flex-1 bg-slate-800'></div>
-    <div class={`flex ${state.mode === 'normal' ? 'bg-amber-500' : 'bg-emerald-500'}`}>
-      {state.mode}
+    <div class={`flex ${state.mode === 'edit' ? 'bg-emerald-500' : 'bg-amber-500'}`}>
+      {state.mode === 'command' ? ':' + state.command : state.mode}
     </div>
   </div>
   </>)
@@ -423,7 +479,7 @@ type Cursor = {
   mode: Mode
 }
 function Cursor(props: { cursor: Cursor, char: string }) {
-  return <span class={`left-0 absolute h-full ${props.cursor.mode === 'normal' ? 'w-full bg-amber-800' : 'w-0.5 bg-emerald-500'}`}></span>
+  return <span class={`animate-[pulse.8s_linear_infinite] left-0 absolute h-full ${props.cursor.mode === 'normal' ? 'w-full bg-amber-800' : 'w-0.5 bg-emerald-500'}`}></span>
 }
 
 function Relation(props: { fen: FEN, relation: RelationManager }) {
