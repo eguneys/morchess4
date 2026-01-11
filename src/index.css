@@ -1,5 +1,14 @@
 @import 'tailwindcss';
 
+
+
+.space-mono-regular {
+  font-family: "Space Mono", monospace;
+  font-weight: 400;
+  font-style: normal;
+}
+
+
 .inter-500 {
   font-family: "Inter", sans-serif;
   font-optical-sizing: auto;
