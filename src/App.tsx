@@ -123,18 +123,11 @@ function value_sensibles(pos: Position, m: Map<Column, number>) {
   const piece_name = (value: number) => piece(piece_c_to_piece(value))
   const color_name = (value: number) => value === WHITE ? 'White' : 'Black'
 
-  let from, to
   for (let [key, value] of m.entries()) {
     switch (key) {
       case 'from':
       case 'to':
       case 'square':
-        if (key === 'from') {
-          from = value
-        }
-        if (key === 'to') {
-          to = value
-        }
         res.push(square_name(value))
         break
       case 'piece':
