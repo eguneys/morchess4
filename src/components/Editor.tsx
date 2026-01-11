@@ -214,6 +214,24 @@ function createEditorStore(): EditorStore {
     })
   }
 
+  const join_lines = () => {
+    let content = state.lines[state.i_line].content
+    let content2 = state.lines[state.i_line + 1].content
+
+
+    batch(() => {
+        let i_line = state.i_line
+        set_state('lines', state.i_line, 'content', content + content2)
+        set_state('lines', lines =>
+            lines.toSpliced(state.i_line + 1, 1)
+        )
+        set_state('i_line', state.i_line)
+        set_state('i_cursor', content.length)
+
+        set_change_line(i_line)
+    })
+  }
+
   const delete_text_forward = () => {
     let content = state.lines[state.i_line].content
     let new_content = content.slice(0, state.i_cursor + 1) + content.slice(state.i_cursor + 2)
@@ -323,7 +341,7 @@ function createEditorStore(): EditorStore {
     if (state.mode === 'command') {
       handled = command_mode(e.key)
     } else if (state.mode === 'edit') {
-      handled = edit_mode(e.key, e.ctrlKey)
+      handled = edit_mode(e.key, e.ctrlKey, e.shiftKey)
     } else if (state.mode === 'normal') {
       handled = normal_mode(e.key, e.shiftKey)
     }
@@ -434,6 +452,11 @@ function createEditorStore(): EditorStore {
         })
         break
       case 'j':
+      case 'J':
+        if (is_shift_down) {
+            join_lines()
+            break
+        }
         if (state.motion === 'delete') {
           batch(() => {
             delete_j_motion()
@@ -505,9 +528,24 @@ function createEditorStore(): EditorStore {
     return true
   }
 
-  const edit_mode = (key: string, is_ctrl_down: boolean) => {
+  const edit_shift_mode = (key: string) => {
+    switch (key) {
+        case 'j':
+        case 'J':
+            join_lines()
+            break
+        default:
+            return false
+    }
+    return true
+  }
+
+  const edit_mode = (key: string, is_ctrl_down: boolean, is_shift_down: boolean) => {
     if (is_ctrl_down) {
       return edit_ctrl_mode(key)
+    }
+    if (is_shift_down) {
+        return edit_shift_mode(key)
     }
     switch (key) {
       case 'Enter':
