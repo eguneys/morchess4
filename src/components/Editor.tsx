@@ -236,7 +236,7 @@ function createEditorStore(): EditorStore {
 
   const delete_text_forward = () => {
     let content = state.lines[state.i_line].content
-    let new_content = content.slice(0, state.i_cursor + 1) + content.slice(state.i_cursor + 2)
+    let new_content = content.slice(0, state.i_cursor) + content.slice(state.i_cursor + 1)
 
     batch(() => {
       set_state('lines', state.i_line, 'content', new_content)
@@ -354,6 +354,10 @@ function createEditorStore(): EditorStore {
 
   const command_mode = (key: string) => {
     switch (key) {
+      case 'Escape':
+        set_state('command', '')
+        set_state('mode', 'normal')
+        break
       case 'w':
         set_state('command', 'w')
         break
@@ -508,10 +512,65 @@ function createEditorStore(): EditorStore {
           clamp_cursor_to_line()
         })
         break
+     case 'w':
+        batch(() => {
+            set_state('i_cursor', get_cursor_next_word_beginning(state.i_cursor))
+            clamp_cursor_to_line()
+        })
+        break
+     case 'b':
+        batch(() => {
+            set_state('i_cursor', get_cursor_previous_word_beginning(state.i_cursor))
+            clamp_cursor_to_line()
+        })
+        break
+        case '0':
+            set_state('i_cursor', 0)
+            break
+        case '$':
+            batch(() => {
+                set_state('i_cursor', 999)
+                clamp_cursor_to_line()
+            })
+            break
         default:
           return false
     }
     return true
+  }
+
+  const get_cursor_next_word_beginning = (cursor: number) => {
+    let line = state.lines[state.i_line].content
+    let has
+    while (cursor < line.length) {
+        let check = /[A-Za-z0-9]/.test(line[cursor])
+        if (has === undefined) {
+            has = check
+            continue
+        }
+        if (has !== check) {
+            break
+        }
+        cursor++
+    }
+    return cursor
+  }
+
+  const get_cursor_previous_word_beginning = (cursor: number) => {
+    let line = state.lines[state.i_line].content
+    let has
+    while (cursor > 0) {
+        let check = /[A-Za-z0-9]/.test(line[cursor])
+        if (has === undefined) {
+            has = check
+            continue
+        }
+        if (has !== check) {
+            break
+        }
+        cursor--
+    }
+    return cursor
   }
 
   const edit_ctrl_mode = (key: string) => {
