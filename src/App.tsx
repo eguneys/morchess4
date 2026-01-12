@@ -247,17 +247,12 @@ function Relation(props: { relation: RelationView }) {
 }
 
 function RowHeader(props: { row_header: RowView }) {
-  let has_move = props.row_header.from !== undefined && props.row_header.to !== undefined
   let keys = [...Object.keys(props.row_header)]
-  if (has_move) {
-    keys.unshift('line')
-  }
-
-    return <tr class='overflow-y-scroll'>
-      <For each={keys}>{(value) =>
-        <th scope='col' class='px-6 py-2 text-left text-xs font-meidum text-gray-500 tracking-wider'>.{value}</th>
-      }</For>
-    </tr>
+  return <tr class='overflow-y-scroll'>
+    <For each={keys}>{(value) =>
+      <th scope='col' class='px-6 py-2 text-left text-xs font-meidum text-gray-500 tracking-wider'>.{value}</th>
+    }</For>
+  </tr>
 }
 
 type FEN = string

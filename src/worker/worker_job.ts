@@ -135,6 +135,13 @@ function value_sensibles(pos: Position, m: Map<Column, number>) {
   const piece_name = (value: number) => piece(piece_c_to_piece(value))
   const color_name = (value: number) => value === WHITE ? 'White' : 'Black'
 
+  let aa = extract_line(m)
+
+  let resaa = extract_sans(pos, aa)
+  if (resaa.length > 0) {
+    res['line'] = resaa.join(' ')
+  }
+
   for (let [key, value] of m.entries()) {
     switch (key) {
       case 'from':
@@ -153,16 +160,14 @@ function value_sensibles(pos: Position, m: Map<Column, number>) {
         if (key.includes('piece')) {
           res[key] = piece_name(value)
         } else {
+          if (key.includes('world')) {
+            continue
+          }
           res[key] = value
         }
     }
   }
-  let aa = extract_line(m)
 
-  let resaa = extract_sans(pos, aa)
-  if (resaa.length > 0) {
-    res['line'] = resaa.join(' ')
-  }
   return res
 }
 
