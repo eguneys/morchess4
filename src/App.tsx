@@ -3,7 +3,7 @@ import { Chessboard } from "./components/Chessboard";
 import { parseUci } from 'hopefox'
 import { Editor } from "./components/Editor";
 import { type Puzzle } from "./worker/fixture";
-import { Route, Router } from "@solidjs/router";
+import { HashRouter, Route } from "@solidjs/router";
 import { useWorker, WorkerProvider } from './worker/Worker2'
 import { createStore } from "solid-js/store";
 import type { PuzzleResult, RelationView, RowView } from "./worker/worker_job";
@@ -11,9 +11,9 @@ import type { PuzzleResult, RelationView, RowView } from "./worker/worker_job";
 export default function App() {
 
   return (<>
-    <Router root={Layout}>
+    <HashRouter root={Layout}>
       <Route path='/' component={Home} />
-    </Router>
+    </HashRouter>
   </>)
 }
 
