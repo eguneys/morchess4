@@ -44,12 +44,14 @@ export function Chessboard(props: { fen: FEN, last_move?: Move, on_wheel?: (_: n
 
     let $el!: HTMLDivElement
 
-    const handle_wheel_event = (e: WheelEvent) => {
-        e.preventDefault()
-        props.on_wheel?.(e.deltaY)
+    const handle_wheel_event = {
+        handleEvent: (e: WheelEvent) => {
+            props.on_wheel?.(e.deltaY)
+        },
+        passive: true
     }
 
     return (<>
-    <div onWheel={handle_wheel_event} ref={$el} class='is2d chessboard-wrap tinos-bold'></div>
+    <div on:wheel={handle_wheel_event} ref={$el} class='is2d chessboard-wrap tinos-bold'></div>
     </>)
 }

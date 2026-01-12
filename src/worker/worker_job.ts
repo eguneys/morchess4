@@ -93,11 +93,11 @@ onmessage = async (e: MessageEvent) => {
     if (e.data.t === 'one') {
         let puzzle = pp.find(_ => _.id === e.data.d.id)!
         let program = e.data.d.program
-        run_on_one_puzzle(puzzle.move_fens[0], program)
+        let result = run_on_one_puzzle(puzzle.move_fens[e.data.d.cursor], program)
         postMessage({ t: 'run_on_one', 
             d: {
                 puzzle,
-                result: run_on_one_puzzle(puzzle.move_fens[0], program)
+                result
             }
         })
     }

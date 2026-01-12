@@ -1,4 +1,4 @@
-import { createMemo, createSignal, For, type JSX, Show } from "solid-js";
+import { batch, createMemo, createSignal, For, type JSX, Show } from "solid-js";
 import { Chessboard } from "./components/Chessboard";
 import { parseUci } from 'hopefox'
 import { Editor } from "./components/Editor";
@@ -44,6 +44,8 @@ type Move = any
 type SelectedPuzzleInfo = {
   id: PuzzleId
   fen: FEN
+  i_cursor: number
+  puzzle: Puzzle
   last_move: Move
   solution: string
 }
@@ -61,7 +63,7 @@ function WithWorker() {
   })
 
   const solution = createMemo(() => {
-    return state.run_on_one?.result.relations?.find(_ => _.name === 'solution')?.rows[0].line
+    return state.run_on_one?.result.relations?.find(_ => _.name === 'solution')?.rows[0]?.line
   })
 
   const selected_puzzle = createMemo(() => {
@@ -70,6 +72,8 @@ function WithWorker() {
         let puzzle = worker.list[0]
         set_state('selected_puzzle', {
           id: puzzle.id,
+          puzzle: puzzle,
+          i_cursor: 0,
           fen: puzzle.move_fens[0],
           last_move: parseUci(puzzle.moves.split(' ')[0]),
           solution: puzzle.sans.join(' ')
@@ -84,7 +88,7 @@ function WithWorker() {
     if (state.selected_puzzle === undefined) {
       return
     }
-    one(state.selected_puzzle.id, state.program)
+    one(state.selected_puzzle.id, state.program, state.selected_puzzle.i_cursor)
   }
 
   const on_program_changed = (rules: string) => {
@@ -95,6 +99,8 @@ function WithWorker() {
   const on_puzzle_selected = (puzzle: Puzzle) => {
     set_state('selected_puzzle', {
       id: puzzle.id,
+      puzzle: puzzle,
+      i_cursor: 0,
       fen: puzzle.move_fens[0],
       last_move: parseUci(puzzle.moves.split(' ')[0]),
       solution: puzzle.sans.join(' ')
@@ -114,11 +120,40 @@ function WithWorker() {
     return relation_slice()?.sort((a, _) => a.name === column ? -1 : 0)
   }
 
+  const go_prev = () => {
+    if (state.selected_puzzle === undefined) {
+      return
+    }
+    let prev_cursor = state.selected_puzzle.i_cursor - 1
+    let prev_fen = state.selected_puzzle.puzzle.move_fens[prev_cursor]
+    if (prev_fen) {
+      batch(() => {
+        set_state('selected_puzzle', 'i_cursor', prev_cursor)
+        set_state('selected_puzzle', 'fen', prev_fen)
+      })
+      run_on_one_puzzle()
+    }
+  }
+  const go_next = () => {
+    if (state.selected_puzzle === undefined) {
+      return
+    }
+    let next_cursor = state.selected_puzzle.i_cursor + 1
+    let next_fen = state.selected_puzzle.puzzle.move_fens[next_cursor]
+    if (next_fen) {
+      batch(() => {
+        set_state('selected_puzzle', 'i_cursor', next_cursor)
+        set_state('selected_puzzle', 'fen', next_fen)
+      })
+      run_on_one_puzzle()
+    }
+  }
+
   const on_board_wheel = (delta: number) => {
     if (delta < 0) {
-      //go_prev()
+      go_prev()
     } else {
-      //go_next()
+      go_next()
     }
   }
 
@@ -187,12 +222,12 @@ function PuzzleItem(props: { selected: boolean, puzzle: Puzzle, on_click: () => 
 }
 
 function Relation(props: { relation: RelationView }) {
-  let rows = createMemo(() => props.relation.rows)
+  let rows = createMemo(() => props.relation.rows.slice(0, 100))
 
   const row_header = createMemo(() => rows()[0])
   return (
     <div class='relative overflow-x-auto'>
-      <div class='px-1 py-1 bg-amber-800 text-white tracking-wide'>{props.relation.name}: {rows().length} rows</div>
+      <div class='px-1 py-1 bg-amber-800 text-white tracking-wide'>{props.relation.name}: {props.relation.rows.length} rows</div>
       <div class='overflow-y-auto max-h-40'>
         <table class='min-w-full divide-y divide-gray-200'>
           <thead class='bg-gray-50'>

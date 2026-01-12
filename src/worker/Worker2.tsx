@@ -13,7 +13,7 @@ type WorkerState = {
 }
 
 type WorkerActions = {
-    one(id: string, program: string): void
+    one(id: string, program: string, cursor: number): void
     batch(program: string): void
 }
 
@@ -63,7 +63,7 @@ export const WorkerProvider = (props: { children: JSX.Element }) => {
 
 
     let worker_resolve_run_on_one: (_: PuzzleResult) => void 
-    let [_run_on_one, set_fetch_run_on_one] = createSignal<{id: PuzzleId, program: Program} | undefined>(undefined)
+    let [_run_on_one, set_fetch_run_on_one] = createSignal<{id: PuzzleId, program: Program, cursor: number } | undefined>(undefined)
     let fetch_run_on_one = createAsync(() => {
         let res = _run_on_one()
         if (res) {
@@ -86,8 +86,8 @@ export const WorkerProvider = (props: { children: JSX.Element }) => {
 
 
     let actions = {
-        one(id: PuzzleId, program: Program) {
-            set_fetch_run_on_one({ id, program })
+        one(id: PuzzleId, program: Program, cursor: number) {
+            set_fetch_run_on_one({ id, program, cursor })
         },
         batch(program: Program) {
             set_fetch_run_on_list({ program })
