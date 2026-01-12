@@ -109,7 +109,7 @@ function WithWorker() {
   }
 
   const relation_slice = createMemo(() => {
-    return state.run_on_one?.result.relations!.slice(0)
+    return state.run_on_one?.result.relations?.slice(0)
   })
 
 
