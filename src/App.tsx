@@ -1,12 +1,11 @@
-import { createMemo, createSignal, For, onMount, Show, Suspense } from "solid-js";
+import { createMemo, createSignal, For, Show, Suspense } from "solid-js";
 import { Chessboard } from "./components/Chessboard";
 
 import wasm_url from './assets/wasm/hopefox.wasm?url'
 import { fen_pos, make_move_from_to, makeSan, move_c_to_Move, piece, piece_c_to_piece, Position, PositionManager, RelationManager, relations, square, WHITE } from 'hopefox'
-import { makePersisted } from "@solid-primitives/storage";
 import { Editor } from "./components/Editor";
 import { puzzles, type Puzzle } from "./worker/fixture";
-import { createAsync } from "@solidjs/router";
+import { createAsync, Route, Router } from "@solidjs/router";
 
 let m = await PositionManager.make(() => wasm_url)
 
@@ -45,6 +44,14 @@ function createPuzzles(): PuzzlesState {
 
 export default function App() {
 
+  return (<>
+    <Router>
+      <Route path='/' component={Home} />
+    </Router>
+  </>)
+}
+function Home() {
+
   let puzzles = createPuzzles()
 
   return (<>
@@ -58,22 +65,14 @@ export default function App() {
 
 function WithPuzzles(props: { puzzles: PuzzlesState }) {
 
-  let [program, set_program] = makePersisted(createSignal(''), {
-    name: 'program'
-  })
-
-
   let [get_relations, set_relations] = createSignal<RelationManager[]>([], { equals: false })
 
   let fen = () => props.puzzles.puzzles![props.puzzles.skips[0]].move_fens[0]
 
   const on_program_changed = (rules: string) => {
-
-    set_program(rules)
-
     try {
       let pos = m.create_position(fen())
-      let res = relations(m, pos, program())
+      let res = relations(m, pos, rules)
       set_relations([...res.values()])
 
       on_set_column_under_cursor(column_under_cursor)
@@ -92,11 +91,6 @@ function WithPuzzles(props: { puzzles: PuzzlesState }) {
     set_relations(get_relations().sort((a, _) => a.name === column ? -1 : 0))
     column_under_cursor = column
   }
-
-  onMount(() => {
-    //console.log(program())
-    on_program_changed(program())
-  })
 
   return (<>
     <h1 class='text-3xl inter-500'>Mor Chess 4</h1>

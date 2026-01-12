@@ -1,4 +1,5 @@
 import { makePersisted } from "@solid-primitives/storage"
+import { useBeforeLeave, type BeforeLeaveEventArgs } from "@solidjs/router"
 import { batch, createContext, createMemo, For, onMount, Show, useContext, type JSX } from "solid-js"
 import { createStore } from "solid-js/store"
 
@@ -17,6 +18,7 @@ type Mode = 'normal' | 'edit' | 'command'
 type Motion = 'delete' | null
 
 type EditorState = {
+  has_unsaved_changes: boolean
   g_mode: boolean
   camera_y: number
   motion: Motion
@@ -189,6 +191,7 @@ type Token = {
 
 
 type EditorStoreState = {
+  has_unsaved_changes: boolean
   camera_y: number
   meta: Record<LineId, LineMetadata>
   command: string
@@ -233,6 +236,7 @@ function createEditorStore(): EditorStore {
 
   let first_line: Line = line('hello')
   const [state, set_state] = createStore<EditorState>({
+    has_unsaved_changes: false,
     g_mode: false,
     camera_y: 0,
     motion: null,
@@ -380,13 +384,12 @@ function createEditorStore(): EditorStore {
 
   const delete_until_beginning_of_file = () => {
     batch(() => {
-      let i_line = state.i_line
       set_state('lines', lines =>
         lines.toSpliced(0, state.i_line)
       )
       set_state('i_line', 0)
       clamp_cursor_to_line()
-      set_change_line(i_line)
+      set_change_line(0)
     })
   }
 
@@ -409,6 +412,7 @@ function createEditorStore(): EditorStore {
       )
       set_state('i_line', state.i_line + 1)
       set_state('i_cursor', 0)
+      set_change_line(state.i_line - 1)
     })
   }
 
@@ -417,8 +421,7 @@ function createEditorStore(): EditorStore {
       set_state('lines', lines =>
         lines.toSpliced(state.i_line, 0, line(''))
       )
-      //set_state('i_line', state.i_line)
-      //set_state('i_cursor', 0)
+      set_change_line(state.i_line)
       clamp_cursor_to_line()
     })
   }
@@ -795,6 +798,7 @@ function createEditorStore(): EditorStore {
           }
           return false
     }
+    set_state('has_unsaved_changes', true)
     return true
   }
 
@@ -843,6 +847,7 @@ function createEditorStore(): EditorStore {
         batch(() => {
             on_save_program_callback(get_full_program())
             set_column_under_cursor()
+            set_state('has_unsaved_changes', false)
         })
     }
     function set_column_under_cursor() {
@@ -892,31 +897,34 @@ function createEditorStore(): EditorStore {
         }
     }
 
-    let res_state = {
-        get camera_y() {
-            return state.camera_y
-        },
-        get meta() {
-            return parser_state.meta
-        },
-        get command() {
-            return state.command
-        },
-        get i_cursor() {
-            return state.i_cursor
-        },
-        get i_line() {
-            return state.i_line
-        },
-        get lines() {
-            return state.lines
-        },
-        get mode() {
-            return state.mode
-        }
+  let res_state = {
+    get has_unsaved_changes() {
+      return state.has_unsaved_changes
+    },
+    get camera_y() {
+      return state.camera_y
+    },
+    get meta() {
+      return parser_state.meta
+    },
+    get command() {
+      return state.command
+    },
+    get i_cursor() {
+      return state.i_cursor
+    },
+    get i_line() {
+      return state.i_line
+    },
+    get lines() {
+      return state.lines
+    },
+    get mode() {
+      return state.mode
     }
+  }
 
-    let on_save_program_callback: (_: string) => void = () => {}
+  let on_save_program_callback: (_: string) => void = () => { }
     const set_on_save_program_callback = (fn: (_: string) => void) => {
         on_save_program_callback = fn
     }
