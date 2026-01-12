@@ -1,5 +1,4 @@
 import { makePersisted } from "@solid-primitives/storage"
-import { useBeforeLeave, type BeforeLeaveEventArgs } from "@solidjs/router"
 import { batch, createContext, createMemo, createSignal, For, onMount, Show, useContext, type JSX } from "solid-js"
 import { createStore } from "solid-js/store"
 
@@ -59,7 +58,6 @@ function EditorWithParser(props: EditorProps) {
     set_on_column_under_cursor_callback(props.on_set_column_under_cursor)
 
 
-    bounds = $el.getBoundingClientRect()
     set_on_cursor_change_callback(on_cursor_change)
 
     load_program()
@@ -67,30 +65,13 @@ function EditorWithParser(props: EditorProps) {
 
   const on_cursor_change = () => {
 
-    function step() {
-      const $cursor = $el.querySelector('.cursor')
-      if (!$cursor || !bounds) {
-        scroll_camera_y(-1)
-      } else {
-        let rect = $cursor!.getBoundingClientRect()
-        if (bounds.bottom - rect.bottom < 130) {
-          if (!scroll_camera_y(1)) {
-            return
-          }
-        } else if (rect.top - bounds.top < 130) {
-          if (!scroll_camera_y(-1)) {
-            return
-          }
-        } else {
-          return
-        }
-      }
-      requestAnimationFrame(step)
+    if (state.i_line - state.camera_y < 3) {
+      scroll_camera_y(-1)
+    } else
+    if ((state.camera_y + 20) - state.i_line < 3) {
+      scroll_camera_y(1)
     }
-    requestAnimationFrame(step)
   }
-
-  let bounds: DOMRect
 
   let $el!: HTMLDivElement
   let focus_on_editor = () => $el.focus()

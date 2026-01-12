@@ -13,7 +13,7 @@ import { square } from "hopefox"
 type FEN = string
 type Move = any
 
-export function Chessboard(props: { fen: FEN, last_move?: Move }) {
+export function Chessboard(props: { fen: FEN, last_move?: Move, on_wheel?: (_: number) => void }) {
 
     let ground: Api
 
@@ -44,7 +44,12 @@ export function Chessboard(props: { fen: FEN, last_move?: Move }) {
 
     let $el!: HTMLDivElement
 
+    const handle_wheel_event = (e: WheelEvent) => {
+        e.preventDefault()
+        props.on_wheel?.(e.deltaY)
+    }
+
     return (<>
-    <div ref={$el} class='is2d chessboard-wrap tinos-bold'></div>
+    <div onWheel={handle_wheel_event} ref={$el} class='is2d chessboard-wrap tinos-bold'></div>
     </>)
 }
