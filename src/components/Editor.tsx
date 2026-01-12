@@ -1,6 +1,6 @@
 import { makePersisted } from "@solid-primitives/storage"
 import { useBeforeLeave, type BeforeLeaveEventArgs } from "@solidjs/router"
-import { batch, createContext, createMemo, For, onMount, Show, useContext, type JSX } from "solid-js"
+import { batch, createContext, createMemo, createSignal, For, onMount, Show, useContext, type JSX } from "solid-js"
 import { createStore } from "solid-js/store"
 
 const gen_line_id = (() => {
@@ -54,7 +54,6 @@ function EditorWithParser(props: EditorProps) {
     }] = useEditor()
 
   onMount(() => {
-    load_program()
     focus_on_editor()
     set_on_save_program_callback(props.on_save_program)
     set_on_column_under_cursor_callback(props.on_set_column_under_cursor)
@@ -63,6 +62,7 @@ function EditorWithParser(props: EditorProps) {
     bounds = $el.getBoundingClientRect()
     set_on_cursor_change_callback(on_cursor_change)
 
+    load_program()
   })
 
   const on_cursor_change = () => {
@@ -95,12 +95,14 @@ function EditorWithParser(props: EditorProps) {
   let $el!: HTMLDivElement
   let focus_on_editor = () => $el.focus()
 
+  let [on_focus, set_on_focus] = createSignal(false)
+
   return (<>
-  <div ref={$el} tabIndex={1} class='flex flex-col space-mono-regular editor bg-slate-800 w-full h-full text-white cursor-text' onMouseDown={() => focus_on_editor} onKeyDown={handle_key_down}>
+  <div ref={$el} tabIndex={1} onFocus={() => set_on_focus(true)} onBlur={() => set_on_focus(false)} class='flex flex-col space-mono-regular editor bg-slate-800 w-full h-full text-white cursor-text' onMouseDown={() => focus_on_editor} onKeyDown={handle_key_down}>
     <div class='flex flex-col overflow-hidden w-100'>
     <For each={state.lines}>{ (block, i) => 
         <Show when={i() >= state.camera_y}>
-            <Block mode={state.mode} block={block} cursor={i() === state.i_line ? state.i_cursor : undefined} />
+            <Block mode={state.mode} block={block} cursor={i() === state.i_line ? state.i_cursor : undefined} on_focus={on_focus()} />
         </Show>
     }</For>
     </div>
@@ -112,7 +114,7 @@ function EditorWithParser(props: EditorProps) {
   </>)
 }
 
-function Block(props: { block: Line, cursor?: number, mode: Mode }) {
+function Block(props: { block: Line, cursor?: number, mode: Mode, on_focus: boolean }) {
 
   const [editor] = useEditor()
   let chars = createMemo(() => props.block.content.split(''))
@@ -122,19 +124,19 @@ function Block(props: { block: Line, cursor?: number, mode: Mode }) {
   return (<>
     <div class='whitespace-pre'>
       <For each={chars()}>{(char, i) =>
-        <Char in_token={in_token(i())} char={char} cursor={i() === props.cursor ? { mode: props.mode } : undefined}></Char>
+        <Char in_token={in_token(i())} char={char} cursor={i() === props.cursor ? { mode: props.mode } : undefined} on_focus={props.on_focus}></Char>
       }</For>
 
-        <Char char={' '} cursor={chars().length === props.cursor ? { mode: props.mode } : undefined}></Char>
+        <Char char={' '} cursor={chars().length === props.cursor ? { mode: props.mode } : undefined} on_focus={props.on_focus} ></Char>
     </div>
   </>)
 }
 
-function Char(props: { in_token?: Token, char: string, cursor?: Cursor }) {
+function Char(props: { in_token?: Token, char: string, cursor?: Cursor, on_focus: boolean }) {
     const highlight = createMemo(() => props.in_token?.type === TokenType.BeginFact ? 'text-emerald-500' : 'text-gray-200')
   return (<><span class='relative'>
     <Show when={props.cursor}>{cursor =>
-      <Cursor cursor={cursor()} char={props.char} />
+      <Cursor cursor={cursor()} char={props.char} blink={props.on_focus} />
     }</Show>
     <span class={`relative ${highlight()}`}>{props.char}</span>
   </span></>)
@@ -143,8 +145,8 @@ function Char(props: { in_token?: Token, char: string, cursor?: Cursor }) {
 type Cursor = {
   mode: Mode
 }
-function Cursor(props: { cursor: Cursor, char: string }) {
-  return <span class={`cursor animate-[pulse.8s_linear_infinite] left-0 absolute h-full ${props.cursor.mode === 'normal' ? 'w-full bg-amber-800' : 'w-0.5 bg-emerald-500'}`}></span>
+function Cursor(props: { cursor: Cursor, char: string, blink?: boolean }) {
+  return <span class={`cursor ${props.blink ? 'animate-blink' : ''} left-0 absolute h-full ${props.cursor.mode === 'normal' ? 'w-full bg-amber-800' : 'w-0.5 bg-emerald-500'}`}></span>
 }
 
 
@@ -493,7 +495,9 @@ function createEditorStore(): EditorStore {
       set_state('camera_y', persisted_program.camera_y ?? 0)
 
       load_parser(state.lines)
+
     })
+    on_save_program_callback(get_full_program())
   }
 
   const get_full_program = () => {

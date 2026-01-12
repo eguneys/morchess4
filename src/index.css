@@ -40,3 +40,26 @@
   font-weight: 700;
   font-style: italic;
 }
+
+
+/*
+Source - https://stackoverflow.com/a/16344389
+Posted by Mr. Alien, modified by community. See post 'Timeline' for change history
+Retrieved 2026-01-12, License - CC BY-SA 4.0
+*/
+
+.animate-blink {
+  animation: blinker .9s linear infinite;
+}
+
+@keyframes blinker {
+  20% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+}

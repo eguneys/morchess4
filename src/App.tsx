@@ -2,7 +2,7 @@ import { createMemo, createSignal, For, Show, Suspense } from "solid-js";
 import { Chessboard } from "./components/Chessboard";
 
 import wasm_url from './assets/wasm/hopefox.wasm?url'
-import { fen_pos, make_move_from_to, makeSan, move_c_to_Move, piece, piece_c_to_piece, Position, PositionManager, RelationManager, relations, square, WHITE } from 'hopefox'
+import { fen_pos, make_move_from_to, makeSan, move_c_to_Move, parseUci, piece, piece_c_to_piece, Position, PositionManager, RelationManager, relations, square, WHITE, type MoveC } from 'hopefox'
 import { Editor } from "./components/Editor";
 import { puzzles, type Puzzle } from "./worker/fixture";
 import { createAsync, Route, Router } from "@solidjs/router";
@@ -67,12 +67,42 @@ function WithPuzzles(props: { puzzles: PuzzlesState }) {
 
   let [get_relations, set_relations] = createSignal<RelationManager[]>([], { equals: false })
 
-  let fen = () => props.puzzles.puzzles![props.puzzles.skips[0]].move_fens[0]
+  let [i_puzzle, set_i_puzzle] = createSignal(props.puzzles.puzzles![props.puzzles.skips[0]].id)
+  let puzzle = () => props.puzzles.puzzles!.find(_ => _.id === i_puzzle())!
+  let fen = createMemo(() => puzzle().move_fens[0])
+  let solution = createMemo(() => puzzle().sans.join(' '))
+  let last_move = createMemo(() => parseUci(puzzle().moves.split(' ')[0]))
+
+  let solution2 = createMemo(() => {
+    let res = get_relations().find(_ => _.name === 'solution')
+    if (!res) {
+      return '--'
+    }
+    let row = res.get_relation_starting_at_world_id(0).rows[0]
+    if (!row) {
+      return '--'
+    }
+    return extract_sans(fen_pos(fen()), extract_line(row)).join(' ')
+  })
+
+  const [program, set_program] = createSignal('')
 
   const on_program_changed = (rules: string) => {
+    set_program(rules)
+    run_on_one_puzzle()
+  }
+
+  const on_puzzle_selected = (puzzle: Puzzle) => {
+    set_i_puzzle(puzzle.id)
+    run_on_one_puzzle()
+  }
+
+
+
+  const run_on_one_puzzle = () => {
     try {
       let pos = m.create_position(fen())
-      let res = relations(m, pos, rules)
+      let res = relations(m, pos, program())
       set_relations([...res.values()])
 
       on_set_column_under_cursor(column_under_cursor)
@@ -92,10 +122,9 @@ function WithPuzzles(props: { puzzles: PuzzlesState }) {
     column_under_cursor = column
   }
 
-  return (<>
-    <h1 class='text-3xl inter-500'>Mor Chess 4</h1>
 
-    <div class='flex p-2 gap-2 h-130'>
+  return (<>
+    <div class='flex p-2 h-130'>
       <div class='flex-2'>
         <div class='flex flex-col'>
           <div class='h-150'>
@@ -112,8 +141,40 @@ function WithPuzzles(props: { puzzles: PuzzlesState }) {
         }</For>
       </div>
       <div class='flex-2'>
-        <Chessboard fen={fen()}/>
+        <div>
+          <div>
+            <PuzzleList selected={i_puzzle()} on_select_puzzle={on_puzzle_selected} puzzles={props.puzzles}/>
+          </div>
+          <div>
+            <Chessboard fen={fen()} last_move={last_move()}/>
+            <div>{solution()}</div>
+            <div>{solution2()}</div>
+          </div>
+        </div>
       </div>
+    </div>
+  </>)
+}
+
+function PuzzleList(props: { selected: string, puzzles: PuzzlesState, on_select_puzzle: (p: Puzzle) => void }) {
+
+  return (<>
+  <div class='flex flex-col overflow-y-scroll max-h-30'>
+    <For each={props.puzzles.skips}>{i => 
+        <div>
+          <PuzzleItem selected={props.selected === props.puzzles.puzzles![i].id} puzzle={props.puzzles.puzzles![i]} on_click={() => props.on_select_puzzle(props.puzzles.puzzles![i])} />
+        </div>
+    }</For>
+  </div>
+  </>)
+}
+
+function PuzzleItem(props: { selected: boolean, puzzle: Puzzle, on_click: () => void }) {
+  return (<>
+    <div onClick={props.on_click} class={`flex items-center px-1 py-1 ${props.selected ? 'bg-amber-200' : 'bg-slate-400'} hover:bg-gray-200 cursor-pointer`}>
+      <div><a class='text-blue-800' href={props.puzzle.link} target="_blank">{props.puzzle.id}</a></div>
+      <div class='flex-1'></div>
+      <div class='text-xs'>{props.puzzle.tags}</div>
     </div>
   </>)
 }
@@ -201,6 +262,15 @@ function value_sensibles(pos: Position, m: Map<Column, number>) {
   }
   let aa = extract_line(m)
 
+  let resaa = extract_sans(pos, aa)
+  if (resaa.length > 0) {
+    res.unshift(resaa.join(' '))
+  }
+  return res
+}
+
+function extract_sans(pos: Position, aa: MoveC[]) {
+
   let resaa = []
   let p2 = pos.clone()
   for (let a = 0; a < aa.length; a++) {
@@ -208,10 +278,7 @@ function value_sensibles(pos: Position, m: Map<Column, number>) {
     resaa.push(makeSan(p2, move))
     p2.play(move)
   }
-  if (resaa.length > 0) {
-    res.unshift(resaa.join(' '))
-  }
-  return res
+  return resaa
 }
 
 type Row = Map<Column, number>

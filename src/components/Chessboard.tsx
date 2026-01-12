@@ -5,17 +5,25 @@ import '../assets/chessground/cburnett.css'
 import '../assets/chessground/theme.css'
 import './Chessboard.css'
 import type { Api } from "@lichess-org/chessground/api"
+import type { Config } from "@lichess-org/chessground/config"
+import type { Key } from "@lichess-org/chessground/types"
+import { square } from "hopefox"
 
 
 type FEN = string
-export function Chessboard(props: { fen: FEN }) {
+type Move = any
+
+export function Chessboard(props: { fen: FEN, last_move?: Move }) {
 
     let ground: Api
 
     onMount(() => {
 
-        let config = {
+        let config: Config = {
             fen: props.fen
+        }
+        if (props.last_move) {
+            config.lastMove = [square(props.last_move.from) as Key, square(props.last_move.to) as Key]
         }
         ground = Chessground($el, config)
     })
@@ -23,10 +31,15 @@ export function Chessboard(props: { fen: FEN }) {
     createEffect(() => {
 
         let fen = props.fen
+        let lastMove
+        if (props.last_move) {
+            lastMove = [square(props.last_move.from) as Key, square(props.last_move.to) as Key]
+        }
         if (!ground) {
             return
         }
-        ground.set({ fen })
+
+        ground.set({ fen, lastMove })
     })
 
     let $el!: HTMLDivElement
