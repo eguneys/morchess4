@@ -27,8 +27,8 @@ jobs:
     
       - name: Build project
         run: |
-           ./link_hopefox.sh
            cd web
+           ./link_hopefox.sh
            pnpm install
            pnpm build
 
