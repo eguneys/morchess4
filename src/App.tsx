@@ -125,7 +125,7 @@ function WithPuzzles(props: { puzzles: PuzzlesState }) {
 }
 
 function Relation(props: { fen: FEN, relation: RelationManager }) {
-  let rows = props.relation.get_relation_starting_at_world_id(0).rows.slice(0, 8)
+  let rows = props.relation.get_relation_starting_at_world_id(0).rows
 
   const row_header = rows[0]
   return (
