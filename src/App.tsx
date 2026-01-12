@@ -1,22 +1,71 @@
-import { createMemo, createSignal, For, onMount, Show } from "solid-js";
+import { createMemo, createSignal, For, onMount, Show, Suspense } from "solid-js";
 import { Chessboard } from "./components/Chessboard";
 
 import wasm_url from './assets/wasm/hopefox.wasm?url'
 import { fen_pos, make_move_from_to, makeSan, move_c_to_Move, piece, piece_c_to_piece, Position, PositionManager, RelationManager, relations, square, WHITE } from 'hopefox'
 import { makePersisted } from "@solid-primitives/storage";
 import { Editor } from "./components/Editor";
+import { puzzles, type Puzzle } from "./worker/fixture";
+import { createAsync } from "@solidjs/router";
 
 let m = await PositionManager.make(() => wasm_url)
 
+type PuzzlesState = {
+  puzzles: Puzzle[] | undefined
+  skips: number[]
+}
+function createPuzzles(): PuzzlesState {
+
+  let skips = [
+    501, 502, 504, 506, 507, 508, 509, 510, 512,
+    513, 514, 516, 517, 519, 521, 522, 524, 528,
+    529, 534, 535, 537, 538, 539, 540, 541, 542,
+    544, 546, 547, 549, 554, 555, 556, 557, 558,
+    559, 560, 561, 562, 565, 568, 570, 571, 573,
+    574, 575, 576, 577, 578, 580, 581, 583, 584,
+    585, 587, 588, 590, 591, 593, 594, 595, 596,
+    597, 598, 599
+  ]
+
+  let pp = createAsync(puzzles)
+
+
+  return {
+    get puzzles() {
+      return pp()
+    },
+    get skips() {
+      return skips
+    }
+  }
+
+
+}
+
+
 export default function App() {
+
+  let puzzles = createPuzzles()
+
+  return (<>
+    <Suspense fallback={"Loading puzzles"}>
+      <Show when={puzzles.puzzles}>
+        <WithPuzzles puzzles={puzzles}/>
+      </Show>
+    </Suspense>
+  </>)
+}
+
+function WithPuzzles(props: { puzzles: PuzzlesState }) {
 
   let [program, set_program] = makePersisted(createSignal(''), {
     name: 'program'
   })
 
+
   let [get_relations, set_relations] = createSignal<RelationManager[]>([], { equals: false })
 
-  let fen = () => 'r2q1rk1/p1p1bppp/2pp2b1/4p3/4n1PN/2NP3P/PPP2PK1/R1BQ1R2 w - - 0 12'
+  let fen = () => props.puzzles.puzzles![props.puzzles.skips[0]].move_fens[0]
 
   const on_program_changed = (rules: string) => {
 
@@ -165,7 +214,9 @@ function value_sensibles(pos: Position, m: Map<Column, number>) {
     resaa.push(makeSan(p2, move))
     p2.play(move)
   }
-  res.unshift(resaa.join(' '))
+  if (resaa.length > 0) {
+    res.unshift(resaa.join(' '))
+  }
   return res
 }
 

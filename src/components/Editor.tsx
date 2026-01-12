@@ -17,6 +17,7 @@ type Mode = 'normal' | 'edit' | 'command'
 type Motion = 'delete' | null
 
 type EditorState = {
+  g_mode: boolean
   camera_y: number
   motion: Motion
   mode: Mode
@@ -63,19 +64,28 @@ function EditorWithParser(props: EditorProps) {
   })
 
   const on_cursor_change = () => {
-    let $cursor = $el.querySelector('.cursor')
-    if (!$cursor || !bounds) {
-        return
-    }
 
-    let rect = $cursor.getBoundingClientRect()
-
-    if (bounds.bottom - rect.bottom < 130) {
-        scroll_camera_y(1)
-    } 
-    if (rect.top - bounds.top < 130) {
+    function step() {
+      const $cursor = $el.querySelector('.cursor')
+      if (!$cursor || !bounds) {
         scroll_camera_y(-1)
+      } else {
+        let rect = $cursor!.getBoundingClientRect()
+        if (bounds.bottom - rect.bottom < 130) {
+          if (!scroll_camera_y(1)) {
+            return
+          }
+        } else if (rect.top - bounds.top < 130) {
+          if (!scroll_camera_y(-1)) {
+            return
+          }
+        } else {
+          return
+        }
+      }
+      requestAnimationFrame(step)
     }
+    requestAnimationFrame(step)
   }
 
   let bounds: DOMRect
@@ -179,13 +189,13 @@ type Token = {
 
 
 type EditorStoreState = {
-    camera_y: number,
-    meta: Record<LineId, LineMetadata>
-    command: string,
-    i_cursor: number,
-    i_line: number,
-    lines: Line[],
-    mode: Mode
+  camera_y: number
+  meta: Record<LineId, LineMetadata>
+  command: string
+  i_cursor: number
+  i_line: number
+  lines: Line[]
+  mode: Mode
 }
 
 type EditorStoreActions = {
@@ -194,7 +204,7 @@ type EditorStoreActions = {
     set_on_save_program_callback: (fn: (_: string) => void) => void
     set_on_column_under_cursor_callback: (fn: (_: string) => void) => void
     set_on_cursor_change_callback: (fn: () => void) => void
-    scroll_camera_y: (_: number) => void
+    scroll_camera_y: (_: number) => boolean
 }
 
 type EditorStore = [EditorStoreState, EditorStoreActions]
@@ -223,6 +233,7 @@ function createEditorStore(): EditorStore {
 
   let first_line: Line = line('hello')
   const [state, set_state] = createStore<EditorState>({
+    g_mode: false,
     camera_y: 0,
     motion: null,
     command: '',
@@ -233,23 +244,34 @@ function createEditorStore(): EditorStore {
   })
 
   const scroll_camera_y = (delta: number) => {
+    let tmp = state.camera_y
     set_state('camera_y', Math.min(Math.max(0, state.camera_y + delta), state.lines.length))
+    let now = state.camera_y
+
+    return tmp !== now
   }
 
   const clamp_cursor_to_line = () => {
-    if (state.i_line < 0) {
-      set_state('i_line', 0)
-    }
-    if (state.i_line >= state.lines.length) {
-      set_state('i_line', state.lines.length - 1)
-    }
-    if (state.i_cursor > state.lines[state.i_line].content.length) {
-      set_state('i_cursor', state.lines[state.i_line].content.length - 1)
-    }
-    if (state.i_cursor < 0) {
-      set_state('i_cursor', 0)
-    }
-    set_column_under_cursor()
+    batch(() => {
+      if (state.i_line < 0) {
+        set_state('i_line', 0)
+      }
+      if (state.i_line >= state.lines.length) {
+        set_state('i_line', state.lines.length - 1)
+      }
+      if (state.lines.length === 0) {
+        set_state('lines', [line('hello')])
+        set_state('i_line', 0)
+        set_state('i_cursor', 0)
+      } else if (state.i_cursor > state.lines[state.i_line].content.length) {
+        set_state('i_cursor', state.lines[state.i_line].content.length - 1)
+      }
+
+      if (state.i_cursor < 0) {
+        set_state('i_cursor', 0)
+      }
+      set_column_under_cursor()
+    })
   }
 
   const break_line_and_goto_it = () => {
@@ -356,6 +378,30 @@ function createEditorStore(): EditorStore {
     })
   }
 
+  const delete_until_beginning_of_file = () => {
+    batch(() => {
+      let i_line = state.i_line
+      set_state('lines', lines =>
+        lines.toSpliced(0, state.i_line)
+      )
+      set_state('i_line', 0)
+      clamp_cursor_to_line()
+      set_change_line(i_line)
+    })
+  }
+
+  const delete_until_end_of_file = () => {
+    batch(() => {
+      let i_line = state.i_line
+      set_state('lines', lines =>
+        lines.toSpliced(state.i_line, 999)
+      )
+      set_state('i_line', 999)
+      clamp_cursor_to_line()
+      set_change_line(i_line)
+    })
+  }
+
   const enter_newline_and_goto_it = () => {
     batch(() => {
       set_state('lines', lines =>
@@ -398,7 +444,7 @@ function createEditorStore(): EditorStore {
     } else if (state.mode === 'edit') {
       handled = edit_mode(e.key, e.ctrlKey, e.shiftKey)
     } else if (state.mode === 'normal') {
-      handled = normal_mode(e.key, e.shiftKey)
+      handled = normal_mode(e.key, e.ctrlKey, e.shiftKey)
     }
     if (handled) {
       e.preventDefault()
@@ -429,6 +475,7 @@ function createEditorStore(): EditorStore {
     program: 'hello',
     i_cursor: 0,
     i_line: 0,
+    camera_y: 0,
   }), {
     name: '.morchess4.program'
   })
@@ -440,6 +487,7 @@ function createEditorStore(): EditorStore {
       set_state('lines', lines)
       set_state('i_line', persisted_program.i_line)
       set_state('i_cursor', persisted_program.i_cursor)
+      set_state('camera_y', persisted_program.camera_y ?? 0)
 
       load_parser(state.lines)
     })
@@ -455,6 +503,7 @@ function createEditorStore(): EditorStore {
         set_persisted_program('program', get_full_program())
         set_persisted_program('i_cursor', state.i_cursor)
         set_persisted_program('i_line', state.i_line)
+        set_persisted_program('camera_y', state.camera_y)
         save_program()
       })
     }
@@ -472,8 +521,64 @@ function createEditorStore(): EditorStore {
     }
   }
 
-  const normal_mode = (key: string, is_shift_down: boolean) => {
+  const normal_mode_ctrl_down = (key: string) => {
     switch (key) {
+      case 'u':
+        batch(() => {
+          set_state('i_line', state.i_line - 13)
+          clamp_cursor_to_line()
+        })
+        break
+        case 'd':
+        batch(() => {
+          set_state('i_line', state.i_line + 13)
+          clamp_cursor_to_line()
+        })
+          break
+      default:
+        return false
+    }
+    return true
+  }
+
+
+  const normal_mode = (key: string, is_ctrl_down: boolean, is_shift_down: boolean) => {
+    if (is_ctrl_down) {
+      return normal_mode_ctrl_down(key)
+    }
+    switch (key) {
+      case 'g':
+      case 'G':
+        if (is_shift_down) {
+          if (state.motion === 'delete') {
+            delete_until_end_of_file()
+            set_state('motion', null)
+            break
+          }
+          batch(() => {
+            set_state('i_line', 999)
+            set_state('i_cursor', 999)
+            clamp_cursor_to_line()
+            set_state('g_mode', false)
+          })
+          break
+        }
+        if (state.g_mode) {
+          if (state.motion === 'delete') {
+            delete_until_beginning_of_file()
+            set_state('motion', null)
+            break
+          }
+          batch(() => {
+            set_state('i_line', 0)
+            set_state('i_cursor', 0)
+            clamp_cursor_to_line()
+            set_state('g_mode', false)
+          })
+        } else {
+          set_state('g_mode', true)
+        }
+        break
       case ':':
         set_state('mode', 'command')
         break
@@ -719,6 +824,9 @@ function createEditorStore(): EditorStore {
         for (let i = state.i_line; i >= 0; i--) {
             let block = state.lines[i]
             let meta = parser_state.meta[block.id]
+            if (!meta) {
+              continue
+            }
             let i_begin = meta.tokens.findIndex(_ => _.type === TokenType.BeginFact || _.type === TokenType.BeginIdea || _.type === TokenType.BeginLegal)
             if (i_begin !== -1) {
                 for (let j = i_begin + 1; j < meta.tokens.length; j++) {
@@ -758,7 +866,7 @@ function createEditorStore(): EditorStore {
 
         let i = index;
         // Look at the line above to get the starting context
-        let currentIncomingState = i > 0
+        let currentIncomingState = i > 0 && state.lines.length > i - 1
             ? parser_state.states[state.lines[i - 1].id]
             : InitParseState;
 
