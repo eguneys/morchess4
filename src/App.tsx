@@ -69,7 +69,9 @@ function WithWorker() {
 
   const [persisted_state, set_persisted_state] = makePersisted(createStore<PersistedState>({
     selected_puzzle: undefined
-  }))
+  }), {
+    name: '.morchess4.app-state.v1'
+  })
 
   function load_state() {
     set_state('selected_puzzle', persisted_state.selected_puzzle)
@@ -79,7 +81,7 @@ function WithWorker() {
   }
 
   const solution = createMemo(() => {
-    return state.run_on_one?.result.relations?.find(_ => _.name === 'solution')?.rows[0]?.line
+    return state.run_on_one?.result.relations?.find(_ => _.name === 'solution')?.rows[0]?.line ?? '--'
   })
 
   const run_on_one_puzzle = () => {
@@ -151,8 +153,8 @@ function WithWorker() {
       batch(() => {
         set_state('selected_puzzle', 'i_cursor', prev_cursor)
         set_state('selected_puzzle', 'fen', prev_fen)
-        save_state()
       })
+      save_state()
       run_on_one_puzzle()
     }
   }
@@ -166,8 +168,8 @@ function WithWorker() {
       batch(() => {
         set_state('selected_puzzle', 'i_cursor', next_cursor)
         set_state('selected_puzzle', 'fen', next_fen)
-        save_state()
       })
+      save_state()
       run_on_one_puzzle()
     }
   }
@@ -187,7 +189,13 @@ function WithWorker() {
     if (e.key === 'ArrowLeft') {
       go_prev()
     }
+    if (e.key === 'ArrowDown') {
+      next_puzzle()
+    }
 
+    if (e.key === 'ArrowUp') {
+      prev_puzzle()
+    }
   }
 
   document.addEventListener('keydown', on_keydown)
@@ -195,23 +203,42 @@ function WithWorker() {
     document.removeEventListener('keydown', on_keydown)
   })
 
-  const on_command_execute = (command: string) => {
-    if (command === 'next' || command === 'prev') {
-      if (worker.list === undefined) {
-      } else {
-        let i = worker.list.findIndex(_ => _.id === selected_puzzle()?.id)
-        if (i > -1) {
-          on_puzzle_selected(worker.list[((command === 'next' ? i + 1 : i - 1) + worker.list.length) % worker.list.length])
-        }
-      }
-
-      return true
+  const next_puzzle = () => {
+    if (worker.list === undefined) {
+      return
     }
-    return false
+    let i = worker.list.findIndex(_ => _.id === selected_puzzle()?.id)
+    if (i > -1) {
+      on_puzzle_selected(worker.list[(i + 1 + worker.list.length) % worker.list.length])
+    }
+  }
+
+  const prev_puzzle = () => {
+    if (worker.list === undefined) {
+      return
+    }
+    let i = worker.list.findIndex(_ => _.id === selected_puzzle()?.id)
+    if (i > -1) {
+      on_puzzle_selected(worker.list[(i - 1 + worker.list.length) % worker.list.length])
+    }
+  }
+
+  const on_command_execute = (command: string) => {
+    switch (command) {
+      case 'next':
+        next_puzzle()
+        break
+      case 'prev':
+        prev_puzzle()
+        break
+      default:
+        return false
+    }
+    return true
   }
 
   return (<>
-    <div class='flex h-130'>
+    <div class='flex h-screen bg-stone-200'>
       <div class='flex-2'>
         <div class='flex flex-col'>
           <div class='h-150'>
@@ -238,8 +265,8 @@ function WithWorker() {
             <Show when={state.selected_puzzle}>{p =>
               <>
                 <Chessboard on_wheel={on_board_wheel} fen={p().fen} last_move={p().last_move} />
-                <div>{p().solution}</div>
-                <div>{solution()}</div>
+                <div class='bg-amber-400 p-2'>{p().solution}</div>
+                <div class='bg-emerald-400 p-2'>{solution()}</div>
               </>
             }</Show>
           </div>
@@ -255,16 +282,14 @@ function PuzzleList(props: { selected: PuzzleId, on_select_puzzle: (p: Puzzle) =
 
   return (<>
   <div class='flex flex-col overflow-y-scroll max-h-30'>
-    <For each={state.list}>{p => 
-        <div>
-          <PuzzleItem selected={props.selected === p.id} puzzle={p} on_click={() => props.on_select_puzzle(p)} />
-        </div>
+    <For each={state.list}>{ (p, i) => 
+        <PuzzleItem n={i() + 1} selected={props.selected === p.id} puzzle={p} on_click={() => props.on_select_puzzle(p)} />
     }</For>
   </div>
   </>)
 }
 
-function PuzzleItem(props: { selected: boolean, puzzle: Puzzle, on_click: () => void }) {
+function PuzzleItem(props: { n: number, selected: boolean, puzzle: Puzzle, on_click: () => void }) {
 
   createEffect(() => {
     if (props.selected) {
@@ -276,9 +301,10 @@ function PuzzleItem(props: { selected: boolean, puzzle: Puzzle, on_click: () => 
 
   return (<>
     <div ref={$el} onClick={props.on_click} class={`flex items-center px-1 py-1 ${props.selected ? 'bg-amber-200' : 'bg-slate-400'} hover:bg-gray-200 cursor-pointer`}>
+      <div class='text-sm font-bold ml-0.5 mr-2'>{props.n}.</div>
       <div><a class='text-blue-800' href={props.puzzle.link} target="_blank">{props.puzzle.id}</a></div>
-      <div class='flex-1'></div>
-      <div class='text-xs'>{props.puzzle.tags}</div>
+      <div class='flex-2'></div>
+      <div class='text-xs flex-1'>{props.puzzle.tags}</div>
     </div>
   </>)
 }
