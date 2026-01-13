@@ -1,4 +1,4 @@
-import { batch, createMemo, createSignal, For, type JSX, Show } from "solid-js";
+import { batch, createEffect, createMemo, createSignal, For, type JSX, onCleanup, Show } from "solid-js";
 import { Chessboard } from "./components/Chessboard";
 import { parseUci } from 'hopefox'
 import { Editor } from "./components/Editor";
@@ -7,6 +7,7 @@ import { HashRouter, Route } from "@solidjs/router";
 import { useWorker, WorkerProvider } from './worker/Worker2'
 import { createStore } from "solid-js/store";
 import type { PuzzleResult, RelationView, RowView } from "./worker/worker_job";
+import { makePersisted } from "@solid-primitives/storage";
 
 export default function App() {
 
@@ -50,6 +51,10 @@ type SelectedPuzzleInfo = {
   solution: string
 }
 
+type PersistedState = {
+  selected_puzzle: SelectedPuzzleInfo | undefined
+}
+
 function WithWorker() {
 
   const [worker, { one }] = useWorker()
@@ -62,12 +67,33 @@ function WithWorker() {
     }
   })
 
+  const [persisted_state, set_persisted_state] = makePersisted(createStore<PersistedState>({
+    selected_puzzle: undefined
+  }))
+
+  function load_state() {
+    set_state('selected_puzzle', persisted_state.selected_puzzle)
+  }
+  function save_state() {
+    set_persisted_state('selected_puzzle', state.selected_puzzle)
+  }
+
   const solution = createMemo(() => {
     return state.run_on_one?.result.relations?.find(_ => _.name === 'solution')?.rows[0]?.line
   })
 
+  const run_on_one_puzzle = () => {
+    if (state.selected_puzzle === undefined) {
+      return
+    }
+    one(state.selected_puzzle.id, state.program, state.selected_puzzle.i_cursor)
+  }
+
+
+
   const selected_puzzle = createMemo(() => {
     if (worker.list !== undefined) {
+      load_state()
       if (state.selected_puzzle === undefined) {
         let puzzle = worker.list[0]
         set_state('selected_puzzle', {
@@ -78,18 +104,12 @@ function WithWorker() {
           last_move: parseUci(puzzle.moves.split(' ')[0]),
           solution: puzzle.sans.join(' ')
         })
-        run_on_one_puzzle()
+        save_state()
       }
+      run_on_one_puzzle()
     }
     return worker.list?.find(_ => _.id === state.selected_puzzle?.id)
   })
-
-  const run_on_one_puzzle = () => {
-    if (state.selected_puzzle === undefined) {
-      return
-    }
-    one(state.selected_puzzle.id, state.program, state.selected_puzzle.i_cursor)
-  }
 
   const on_program_changed = (rules: string) => {
     set_state('program', rules)
@@ -105,6 +125,7 @@ function WithWorker() {
       last_move: parseUci(puzzle.moves.split(' ')[0]),
       solution: puzzle.sans.join(' ')
     })
+    save_state()
     run_on_one_puzzle()
   }
 
@@ -130,6 +151,7 @@ function WithWorker() {
       batch(() => {
         set_state('selected_puzzle', 'i_cursor', prev_cursor)
         set_state('selected_puzzle', 'fen', prev_fen)
+        save_state()
       })
       run_on_one_puzzle()
     }
@@ -144,6 +166,7 @@ function WithWorker() {
       batch(() => {
         set_state('selected_puzzle', 'i_cursor', next_cursor)
         set_state('selected_puzzle', 'fen', next_fen)
+        save_state()
       })
       run_on_one_puzzle()
     }
@@ -157,12 +180,42 @@ function WithWorker() {
     }
   }
 
+  const on_keydown = (e: KeyboardEvent) => {
+    if (e.key === 'ArrowRight') {
+      go_next()
+    }
+    if (e.key === 'ArrowLeft') {
+      go_prev()
+    }
+
+  }
+
+  document.addEventListener('keydown', on_keydown)
+  onCleanup(() => {
+    document.removeEventListener('keydown', on_keydown)
+  })
+
+  const on_command_execute = (command: string) => {
+    if (command === 'next' || command === 'prev') {
+      if (worker.list === undefined) {
+      } else {
+        let i = worker.list.findIndex(_ => _.id === selected_puzzle()?.id)
+        if (i > -1) {
+          on_puzzle_selected(worker.list[((command === 'next' ? i + 1 : i - 1) + worker.list.length) % worker.list.length])
+        }
+      }
+
+      return true
+    }
+    return false
+  }
+
   return (<>
-    <div class='flex p-2 h-130'>
+    <div class='flex h-130'>
       <div class='flex-2'>
         <div class='flex flex-col'>
           <div class='h-150'>
-          <Editor on_save_program={on_program_changed} on_set_column_under_cursor={set_column_under_cursor} />
+          <Editor on_command_execute={on_command_execute} on_save_program={on_program_changed} on_set_column_under_cursor={set_column_under_cursor} />
           </div>
           <Show when={state.run_on_one?.result.error}>{ error =>
             <div class='px-2 py-1 bg-red-500 text-white'>{error()}</div>
@@ -212,8 +265,17 @@ function PuzzleList(props: { selected: PuzzleId, on_select_puzzle: (p: Puzzle) =
 }
 
 function PuzzleItem(props: { selected: boolean, puzzle: Puzzle, on_click: () => void }) {
+
+  createEffect(() => {
+    if (props.selected) {
+      $el.scrollIntoView({block: 'nearest'})
+    }
+  })
+
+  let $el!: HTMLDivElement
+
   return (<>
-    <div onClick={props.on_click} class={`flex items-center px-1 py-1 ${props.selected ? 'bg-amber-200' : 'bg-slate-400'} hover:bg-gray-200 cursor-pointer`}>
+    <div ref={$el} onClick={props.on_click} class={`flex items-center px-1 py-1 ${props.selected ? 'bg-amber-200' : 'bg-slate-400'} hover:bg-gray-200 cursor-pointer`}>
       <div><a class='text-blue-800' href={props.puzzle.link} target="_blank">{props.puzzle.id}</a></div>
       <div class='flex-1'></div>
       <div class='text-xs'>{props.puzzle.tags}</div>

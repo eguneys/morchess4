@@ -31,6 +31,7 @@ type EditorState = {
 type EditorProps = { 
     on_set_column_under_cursor: (_: string) => void, 
     on_save_program: (_: string) => void 
+    on_command_execute: (_: string) => boolean
 }
 
 export function Editor(props: EditorProps) {
@@ -49,6 +50,7 @@ function EditorWithParser(props: EditorProps) {
         set_on_save_program_callback,
         set_on_column_under_cursor_callback,
         set_on_cursor_change_callback,
+        set_on_command_execute_callback,
         scroll_camera_y
     }] = useEditor()
 
@@ -60,16 +62,18 @@ function EditorWithParser(props: EditorProps) {
 
     set_on_cursor_change_callback(on_cursor_change)
 
+    set_on_command_execute_callback(props.on_command_execute)
+
     load_program()
   })
 
   const on_cursor_change = () => {
 
-    if (state.i_line - state.camera_y < 3) {
-      scroll_camera_y(-1)
+    if (state.i_line < state.camera_y + 3) {
+      scroll_camera_y(state.i_line - 3)
     } else
-    if ((state.camera_y + 20) - state.i_line < 3) {
-      scroll_camera_y(1)
+    if (state.i_line > (state.camera_y + 20)) {
+      scroll_camera_y(state.i_line - 20)
     }
   }
 
@@ -190,6 +194,7 @@ type EditorStoreActions = {
     set_on_save_program_callback: (fn: (_: string) => void) => void
     set_on_column_under_cursor_callback: (fn: (_: string) => void) => void
     set_on_cursor_change_callback: (fn: () => void) => void
+    set_on_command_execute_callback: (fn: (_: string) => boolean) => void
     scroll_camera_y: (_: number) => boolean
 }
 
@@ -232,7 +237,7 @@ function createEditorStore(): EditorStore {
 
   const scroll_camera_y = (delta: number) => {
     let tmp = state.camera_y
-    set_state('camera_y', Math.min(Math.max(0, state.camera_y + delta), state.lines.length))
+    set_state('camera_y', Math.min(Math.max(0, delta), state.lines.length))
     let now = state.camera_y
 
     return tmp !== now
@@ -452,6 +457,9 @@ function createEditorStore(): EditorStore {
         set_state('mode', 'normal')
         break
       default:
+        if (/[A-Za-z0-9]/.test(key)) {
+          set_state('command', state.command + key)
+        }
         return false
     }
     return true
@@ -494,7 +502,9 @@ function createEditorStore(): EditorStore {
         set_persisted_program('camera_y', state.camera_y)
         save_program()
       })
+      return true
     }
+    return on_command_execute_callback(state.command)
   }
 
   const enter_delete_motion = () => {
@@ -909,20 +919,28 @@ function createEditorStore(): EditorStore {
     }
   }
 
+  let on_command_execute_callback: (_: string) => boolean = () => false
+  const set_on_command_execute_callback = (fn: (_: string) => boolean) => {
+    on_command_execute_callback = fn
+  }
+
+
+
+
   let on_save_program_callback: (_: string) => void = () => { }
-    const set_on_save_program_callback = (fn: (_: string) => void) => {
-        on_save_program_callback = fn
-    }
+  const set_on_save_program_callback = (fn: (_: string) => void) => {
+    on_save_program_callback = fn
+  }
 
-    let on_set_column_under_cursor: (_: string) => void = () => {}
-    const set_on_column_under_cursor_callback = (fn: (_: string) => void) => {
-        on_set_column_under_cursor = fn
-    }
+  let on_set_column_under_cursor: (_: string) => void = () => { }
+  const set_on_column_under_cursor_callback = (fn: (_: string) => void) => {
+    on_set_column_under_cursor = fn
+  }
 
-    let on_cursor_change: () => void = () => {}
-    const set_on_cursor_change_callback = (fn: () => void) => {
-        on_cursor_change = fn
-    }
+  let on_cursor_change: () => void = () => { }
+  const set_on_cursor_change_callback = (fn: () => void) => {
+    on_cursor_change = fn
+  }
 
     return [res_state, {
         scroll_camera_y,
@@ -930,7 +948,8 @@ function createEditorStore(): EditorStore {
         handle_key_down,
         set_on_save_program_callback,
         set_on_column_under_cursor_callback,
-        set_on_cursor_change_callback
+        set_on_cursor_change_callback,
+        set_on_command_execute_callback,
     }]
 }
 
