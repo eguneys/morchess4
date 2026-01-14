@@ -148,6 +148,7 @@ function value_sensibles(pos: Position, m: Map<Column, number>) {
       case 'to':
       case 'to2':
       case 'square':
+      case 'block':
         res[key] = square_name(value)
         break
       case 'piece':
@@ -157,7 +158,9 @@ function value_sensibles(pos: Position, m: Map<Column, number>) {
         res[key] = color_name(value)
         break
       default:
-        if (key.includes('piece')) {
+        if (key.includes('to')) {
+          res[key] = square(value)
+        } else if (key.includes('piece')) {
           res[key] = piece_name(value)
         } else {
           if (key.includes('world')) {
