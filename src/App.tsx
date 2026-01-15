@@ -96,7 +96,7 @@ function WithWorker() {
   const selected_puzzle = createMemo(() => {
     if (worker.list !== undefined) {
       load_state()
-      if (state.selected_puzzle === undefined) {
+      if (state.selected_puzzle === undefined || !worker.list.find(_ => _.id === state.selected_puzzle!.id)) {
         let puzzle = worker.list[0]
         set_state('selected_puzzle', {
           id: puzzle.id,
@@ -183,19 +183,23 @@ function WithWorker() {
   }
 
   const on_keydown = (e: KeyboardEvent) => {
-    if (e.key === 'ArrowRight') {
-      go_next()
+    switch (e.key) {
+      case 'ArrowRight':
+        go_next()
+        break
+      case 'ArrowLeft':
+        go_prev()
+        break
+      case 'ArrowDown':
+        next_puzzle()
+        break
+      case 'ArrowUp':
+        prev_puzzle()
+        break
+      default:
+        return
     }
-    if (e.key === 'ArrowLeft') {
-      go_prev()
-    }
-    if (e.key === 'ArrowDown') {
-      next_puzzle()
-    }
-
-    if (e.key === 'ArrowUp') {
-      prev_puzzle()
-    }
+    e.preventDefault()
   }
 
   document.addEventListener('keydown', on_keydown)
