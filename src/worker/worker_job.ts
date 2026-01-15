@@ -38,7 +38,8 @@ const run_on_one_puzzle = (fen: FEN, program: string): RunOnOnePuzzleResult => {
     return { relations: res?.map(_ => convert_manager_to_view(fen_pos(fen), _)), error }
 }
 
-let skips = [
+
+let skips500 = [
     501, 502, 504, 506, 507, 508, 509, 510, 512,
     513, 514, 516, 517, 519, 521, 522, 524, 528,
     529, 534, 535, 537, 538, 539, 540, 541, 542,
@@ -48,6 +49,16 @@ let skips = [
     585, 587, 588, 590, 591, 593, 594, 595, 596,
     597, 598, 599
 ]
+
+let skips0 = [
+  28, 34, 39, 47, 48, 54, 56,      
+  62, 65, 66, 67, 69, 70, 72,      
+  75, 79, 80, 83, 84, 87, 92,      
+  94
+]
+
+let skips = skips500
+skips = skips0
 
 export type PuzzleResult = {
     puzzle: Puzzle,
