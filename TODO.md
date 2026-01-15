@@ -5,9 +5,9 @@
 - [x] cw cb dw db
 - [x] _
 - [x] c$
-- undo, redo
+- undo
 - /search n p
-- p yank
+- [+] p yank
 - v selection, delection yank
 - l on end of line stops
 - rc

@@ -14,7 +14,7 @@ type LineId = number
 type Line = { id: LineId, content: string }
 type Mode = 'normal' | 'edit' | 'command'
 
-type Motion = 'delete' | 'change' | null
+type Motion = 'yank' | 'delete' | 'change' | null
 
 type EditorState = {
   has_unsaved_changes: boolean
@@ -26,6 +26,7 @@ type EditorState = {
   i_line: number
   i_cursor: number
   lines: Line[]
+  yank: string | undefined
 }
 
 type EditorProps = { 
@@ -232,7 +233,8 @@ function createEditorStore(): EditorStore {
     mode: 'normal',
     i_line: 0,
     i_cursor: 0,
-    lines: [first_line]
+    lines: [first_line],
+    yank: undefined
   })
 
   const scroll_camera_y = (delta: number) => {
@@ -355,6 +357,19 @@ function createEditorStore(): EditorStore {
   }
 
 
+  const yank_full_line = () => {
+    batch(() => {
+      set_state('yank', state.lines[state.i_line].content)
+    })
+  }
+  const yank_line_between = (a: number, b: number) => {
+    batch(() => {
+      set_state('yank', state.lines[state.i_line].content.slice(a, b))
+    })
+  }
+
+
+
 
   const delete_full_line = () => {
     batch(() => {
@@ -435,6 +450,19 @@ function createEditorStore(): EditorStore {
       )
       set_change_line(state.i_line)
       clamp_cursor_to_line()
+    })
+  }
+
+  const paste_text = () => {
+    let key = state.yank ?? ''
+    let content = state.lines[state.i_line].content
+    let new_content = content.slice(0, state.i_cursor) + key + content.slice(state.i_cursor)
+
+    batch(() => {
+      set_state('lines', state.i_line, 'content', new_content)
+      set_state('i_cursor', state.i_cursor + 1)
+
+      set_change_line(state.i_line)
     })
   }
 
@@ -578,6 +606,19 @@ function createEditorStore(): EditorStore {
         set_state('motion', 'change')
     }
   }
+  const enter_yank_motion = () => {
+
+    if (state.motion === 'yank') {
+      batch(() => {
+        set_state('motion', null)
+      })
+      yank_full_line()
+    } else {
+        set_state('motion', 'yank')
+    }
+  }
+
+
 
 
 
@@ -642,6 +683,14 @@ function createEditorStore(): EditorStore {
         break
       case ':':
         set_state('mode', 'command')
+        break
+      case 'p':
+      case 'P':
+        paste_text()
+        break
+      case 'y':
+      case 'Y':
+        enter_yank_motion()
         break
       case 'c':
       case 'C':
@@ -771,7 +820,7 @@ function createEditorStore(): EditorStore {
       case '_':
         batch(() => {
           let a = state.i_cursor
-          let i_next_cursor = get_cursor_underscore_beginning(state.i_cursor)
+          let i_next_cursor = get_cursor_underscore_beginning()
           set_state('i_cursor', i_next_cursor)
           let b = i_next_cursor
 
@@ -842,6 +891,9 @@ function createEditorStore(): EditorStore {
             delete_line_between(a, b)
             set_state('i_cursor', a)
           }
+          if (state.motion === 'yank') {
+            yank_line_between(a, b)
+          }
         })
         break
       default:
@@ -859,6 +911,13 @@ function createEditorStore(): EditorStore {
         set_state('motion', null)
       }
     }
+
+    if (key !== 'y' && key !== 'Y') {
+      if (state.motion === 'yank') {
+        set_state('motion', null)
+      }
+    }
+
     return true
   }
 
