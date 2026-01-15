@@ -11,7 +11,9 @@
 - v selection, deletion yank
 - [+] l on end of line stops
 - [+] rc
-- new lines writing scroll
+- [+] new lines writing scroll
+- show cursor on 0 lines
+
 
 - layout change
 

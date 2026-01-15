@@ -282,6 +282,7 @@ function createEditorStore(): EditorStore {
         set_state('i_cursor', 0)
 
         set_change_line(i_line)
+      on_cursor_change()
     })
   }
 
@@ -440,6 +441,7 @@ function createEditorStore(): EditorStore {
       set_state('i_line', state.i_line + 1)
       set_state('i_cursor', 0)
       set_change_line(state.i_line - 1)
+      on_cursor_change()
     })
   }
 
@@ -450,6 +452,7 @@ function createEditorStore(): EditorStore {
       )
       set_change_line(state.i_line)
       clamp_cursor_to_line()
+      on_cursor_change()
     })
   }
 
@@ -488,6 +491,7 @@ function createEditorStore(): EditorStore {
 
 
       set_change_line(i_line)
+      on_cursor_change()
     })
   }
 
@@ -511,6 +515,8 @@ function createEditorStore(): EditorStore {
       set_state('i_cursor', state.i_cursor + 1)
 
       set_change_line(state.i_line)
+
+      on_cursor_change()
     })
   }
 
