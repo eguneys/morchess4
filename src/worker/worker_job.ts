@@ -169,7 +169,7 @@ function value_sensibles(pos: Position, m: Map<Column, number>) {
         res[key] = color_name(value)
         break
       default:
-        if (key.includes('to')) {
+        if (key.includes('to') || key.includes('from')) {
           res[key] = square(value)
         } else if (key.includes('piece')) {
           res[key] = piece_name(value)
