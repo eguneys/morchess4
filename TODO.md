@@ -8,9 +8,9 @@
 - undo
 - /search n p
 - [+] p yank
-- v selection, delection yank
-- l on end of line stops
-- rc
+- v selection, deletion yank
+- [+] l on end of line stops
+- [+] rc
 - new lines writing scroll
 
 - layout change

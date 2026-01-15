@@ -14,7 +14,7 @@ type LineId = number
 type Line = { id: LineId, content: string }
 type Mode = 'normal' | 'edit' | 'command'
 
-type Motion = 'yank' | 'delete' | 'change' | null
+type Motion = 'replace' | 'yank' | 'delete' | 'change' | null
 
 type EditorState = {
   has_unsaved_changes: boolean
@@ -257,7 +257,7 @@ function createEditorStore(): EditorStore {
         set_state('lines', [line('hello')])
         set_state('i_line', 0)
         set_state('i_cursor', 0)
-      } else if (state.i_cursor > state.lines[state.i_line].content.length) {
+      } else if (state.i_cursor >= state.lines[state.i_line].content.length) {
         set_state('i_cursor', state.lines[state.i_line].content.length - 1)
       }
 
@@ -491,6 +491,15 @@ function createEditorStore(): EditorStore {
     })
   }
 
+  const replace_char = (key: string) => {
+    let content = state.lines[state.i_line].content
+    let new_content = content.slice(0, state.i_cursor) + key + content.slice(state.i_cursor + 1)
+
+    batch(() => {
+      set_state('lines', state.i_line, 'content', new_content)
+      set_change_line(state.i_line)
+    })
+  }
 
 
   const insert_text = (key: string) => {
@@ -618,6 +627,18 @@ function createEditorStore(): EditorStore {
     }
   }
 
+  const enter_replace_motion = () => {
+
+    if (state.motion === 'replace') {
+      batch(() => {
+        set_state('motion', null)
+      })
+    } else {
+        set_state('motion', 'replace')
+    }
+  }
+
+
 
 
 
@@ -646,6 +667,18 @@ function createEditorStore(): EditorStore {
   const normal_mode = (key: string, is_ctrl_down: boolean, is_shift_down: boolean) => {
     if (is_ctrl_down) {
       return normal_mode_ctrl_down(key)
+    }
+
+    if (state.motion === 'replace') {
+
+      if (key.length === 1 && /[A-Za-z0-9]/.test(key)) {
+        batch(() => {
+          replace_char(key)
+        })
+
+        set_state('motion', null)
+        return
+      }
     }
 
     switch (key) {
@@ -691,6 +724,10 @@ function createEditorStore(): EditorStore {
       case 'y':
       case 'Y':
         enter_yank_motion()
+        break
+      case 'r':
+      case 'R':
+        enter_replace_motion()
         break
       case 'c':
       case 'C':
@@ -898,6 +935,12 @@ function createEditorStore(): EditorStore {
         break
       default:
         return false
+    }
+
+    if (key !== 'r' && key !== 'R') {
+      if (state.motion === 'replace') {
+        set_state('motion', null)
+      }
     }
 
     if (key !== 'c' && key !== 'C') {
