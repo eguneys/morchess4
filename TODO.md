@@ -1,9 +1,8 @@
 ### Editor Features
 
-
 - [x] w jumps beginning on next word
 - [x] b jumps beggining of previous word
-- cw cb dw db
+- [x] cw cb dw db
 - _
 - c$
 - undo, redo
