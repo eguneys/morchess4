@@ -769,6 +769,24 @@ function createEditorStore(): EditorStore {
           }
         })
         break
+      case '_':
+        batch(() => {
+          let a = state.i_cursor
+          let i_next_cursor = get_cursor_underscore_beginning(state.i_cursor)
+          set_state('i_cursor', i_next_cursor)
+          let b = i_next_cursor
+
+          if (state.motion === 'change') {
+            delete_line_between(b, a)
+            set_state('i_cursor', b)
+            set_state('mode', 'edit')
+          }
+          if (state.motion === 'delete') {
+            delete_line_between(b, a)
+            set_state('i_cursor', b)
+          }
+        })
+        break
      case 'b':
         batch(() => {
           let a = state.i_cursor
@@ -849,6 +867,16 @@ function createEditorStore(): EditorStore {
         cursor++
     }
     return cursor
+  }
+
+  const get_cursor_underscore_beginning = () => {
+    let line = state.lines[state.i_line].content
+    for (let i = 0; i < line.length; i++) {
+      if (/[A-Za-z0-9]/.test(line[i])) {
+        return i
+      }
+    }
+    return 0
   }
 
   const get_cursor_previous_word_beginning = (cursor: number, skip_self = true) => {

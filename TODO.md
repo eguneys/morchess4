@@ -3,7 +3,7 @@
 - [x] w jumps beginning on next word
 - [x] b jumps beggining of previous word
 - [x] cw cb dw db
-- _
+- [x] _
 - c$
 - undo, redo
 - /search n p
