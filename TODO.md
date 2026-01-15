@@ -4,7 +4,7 @@
 - [x] b jumps beggining of previous word
 - [x] cw cb dw db
 - [x] _
-- c$
+- [x] c$
 - undo, redo
 - /search n p
 - p yank

@@ -682,8 +682,8 @@ function createEditorStore(): EditorStore {
       case 'j':
       case 'J':
         if (is_shift_down) {
-            join_lines()
-            break
+          join_lines()
+          break
         }
         if (state.motion === 'delete') {
           batch(() => {
@@ -722,7 +722,6 @@ function createEditorStore(): EditorStore {
         break
       case 'l':
         batch(() => {
-
           set_state('i_cursor', state.i_cursor + 1)
           clamp_cursor_to_line()
         })
@@ -733,7 +732,7 @@ function createEditorStore(): EditorStore {
           clamp_cursor_to_line()
         })
         break
-     case 'w':
+      case 'w':
         batch(() => {
           let a = state.i_cursor
           let i_next_cursor = get_cursor_next_word_beginning(state.i_cursor)
@@ -787,31 +786,31 @@ function createEditorStore(): EditorStore {
           }
         })
         break
-     case 'b':
+      case 'b':
         batch(() => {
           let a = state.i_cursor
-            let i_next_cursor = get_cursor_previous_word_beginning(state.i_cursor)
-            if (i_next_cursor === 0) {
-              if (state.motion === 'delete') {
-                delete_line_between(0, a)
-                set_state('i_cursor', 0)
-                return
-              }
-              if (state.motion === 'change') {
-                delete_line_between(0, a)
-                set_state('i_cursor', 0)
-                set_state('mode', 'edit')
-                return
-              }
-              if (state.i_line === 0) {
-                i_next_cursor = 0
-              } else {
-                set_state('i_line', state.i_line - 1)
-                i_next_cursor = get_cursor_previous_word_beginning(state.lines[state.i_line].content.length, false)
-              }
+          let i_next_cursor = get_cursor_previous_word_beginning(state.i_cursor)
+          if (i_next_cursor === 0) {
+            if (state.motion === 'delete') {
+              delete_line_between(0, a)
+              set_state('i_cursor', 0)
+              return
             }
-            set_state('i_cursor', i_next_cursor)
-            clamp_cursor_to_line()
+            if (state.motion === 'change') {
+              delete_line_between(0, a)
+              set_state('i_cursor', 0)
+              set_state('mode', 'edit')
+              return
+            }
+            if (state.i_line === 0) {
+              i_next_cursor = 0
+            } else {
+              set_state('i_line', state.i_line - 1)
+              i_next_cursor = get_cursor_previous_word_beginning(state.lines[state.i_line].content.length, false)
+            }
+          }
+          set_state('i_cursor', i_next_cursor)
+          clamp_cursor_to_line()
 
           let b = i_next_cursor
           if (state.motion === 'change') {
@@ -825,17 +824,28 @@ function createEditorStore(): EditorStore {
           }
         })
         break
-        case '0':
-            set_state('i_cursor', 0)
-            break
-        case '$':
-            batch(() => {
-                set_state('i_cursor', 999)
-                clamp_cursor_to_line()
-            })
-            break
-        default:
-          return false
+      case '0':
+        set_state('i_cursor', 0)
+        break
+      case '$':
+        batch(() => {
+          let a = state.i_cursor
+          set_state('i_cursor', 999)
+          clamp_cursor_to_line()
+          let b = state.i_cursor + 1
+          if (state.motion === 'change') {
+            delete_line_between(a, b)
+            set_state('i_cursor', a)
+            set_state('mode', 'edit')
+          }
+          if (state.motion === 'delete') {
+            delete_line_between(a, b)
+            set_state('i_cursor', a)
+          }
+        })
+        break
+      default:
+        return false
     }
 
     if (key !== 'c' && key !== 'C') {
