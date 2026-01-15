@@ -695,13 +695,27 @@ function createEditorStore(): EditorStore {
         break
      case 'w':
         batch(() => {
-            set_state('i_cursor', get_cursor_next_word_beginning(state.i_cursor))
+            let i_next_cursor = get_cursor_next_word_beginning(state.i_cursor)
+            if (i_next_cursor === state.lines[state.i_line].content.length) {
+                set_state('i_line', Math.min(state.lines.length - 1, state.i_line + 1))
+                i_next_cursor = get_cursor_next_word_beginning(0, false)
+            }
+            set_state('i_cursor', i_next_cursor)
             clamp_cursor_to_line()
         })
         break
      case 'b':
         batch(() => {
-            set_state('i_cursor', get_cursor_previous_word_beginning(state.i_cursor))
+            let i_next_cursor = get_cursor_previous_word_beginning(state.i_cursor)
+            if (i_next_cursor === 0) {
+              if (state.i_line === 0) {
+                i_next_cursor = 0
+              } else {
+                set_state('i_line', state.i_line - 1)
+                i_next_cursor = get_cursor_previous_word_beginning(state.lines[state.i_line].content.length, false)
+              }
+            }
+            set_state('i_cursor', i_next_cursor)
             clamp_cursor_to_line()
         })
         break
@@ -720,16 +734,16 @@ function createEditorStore(): EditorStore {
     return true
   }
 
-  const get_cursor_next_word_beginning = (cursor: number) => {
+  const get_cursor_next_word_beginning = (cursor: number, skip_self = true) => {
     let line = state.lines[state.i_line].content
-    let has
     while (cursor < line.length) {
         let check = /[A-Za-z0-9]/.test(line[cursor])
-        if (has === undefined) {
-            has = check
+        if (check && skip_self) {
+          cursor++
             continue
         }
-        if (has !== check) {
+        skip_self = false
+        if (check) {
             break
         }
         cursor++
@@ -737,17 +751,17 @@ function createEditorStore(): EditorStore {
     return cursor
   }
 
-  const get_cursor_previous_word_beginning = (cursor: number) => {
+  const get_cursor_previous_word_beginning = (cursor: number, skip_self = true) => {
     let line = state.lines[state.i_line].content
-    let has
     while (cursor > 0) {
-        let check = /[A-Za-z0-9]/.test(line[cursor])
-        if (has === undefined) {
-            has = check
+        let check = /[A-Za-z0-9]/.test(line[cursor - 1])
+        if (!check && skip_self) {
+          cursor--
             continue
         }
-        if (has !== check) {
-            break
+        skip_self = false
+        if (!check) {
+          break
         }
         cursor--
     }
