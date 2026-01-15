@@ -231,6 +231,9 @@ function WithWorker() {
       case 'prev':
         prev_puzzle()
         break
+      case 'copy':
+        navigator.clipboard.writeText(state.program)
+        break
       default:
         return false
     }

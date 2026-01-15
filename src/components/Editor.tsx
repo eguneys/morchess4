@@ -414,6 +414,31 @@ function createEditorStore(): EditorStore {
     })
   }
 
+  const insert_bunch_of_text = (text: string) => {
+
+    let lines = text.split("\n")
+    batch(() => {
+      let i_line = state.i_line
+
+      let content = state.lines[state.i_line].content
+      let new_content = content.slice(0, state.i_cursor) + lines[0] + content.slice(state.i_cursor)
+
+      set_state('lines', state.i_line, 'content', new_content)
+      set_state('i_cursor', state.i_cursor + lines[0].length)
+
+      for (let l of lines.slice(1)) {
+        set_state('lines', lines =>
+            lines.toSpliced(state.i_line + 1, 0, line(l))
+        )
+        set_state('i_cursor', l.length)
+        set_state('i_line', state.i_line + 1)
+      }
+
+
+      set_change_line(i_line)
+    })
+  }
+
 
 
   const insert_text = (key: string) => {
@@ -739,6 +764,11 @@ function createEditorStore(): EditorStore {
         break
       case 'j':
         break_line_and_goto_it()
+        break
+      case 'v':
+        navigator.clipboard.readText().then(_ => {
+          insert_bunch_of_text(_)
+        })
         break
       default:
         return false
