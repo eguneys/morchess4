@@ -81,7 +81,7 @@ function WithWorker() {
   }
 
   const solution = createMemo(() => {
-    return state.run_on_one?.result.relations?.find(_ => _.name === 'solution')?.rows[0]?.line ?? '--'
+    return state.run_on_one?.result.relations?.find(_ => _.name === 'binding0')?.rows[0]?.line ?? '--'
   })
 
   const run_on_one_puzzle = () => {
