@@ -1127,6 +1127,7 @@ function createEditorStore(): EditorStore {
     }
 
     function find_column_under_cursor() {
+      let i_binding = 0
         for (let i = state.i_line; i >= 0; i--) {
             let block = state.lines[i]
             let meta = parser_state.meta[block.id]
@@ -1135,6 +1136,9 @@ function createEditorStore(): EditorStore {
             }
             let i_begin = meta.tokens.findIndex(_ => _.type === TokenType.BeginFact || _.type === TokenType.BeginIdea || _.type === TokenType.BeginLegal || _.type === TokenType.BeginBinding)
             if (i_begin !== -1) {
+              if (meta.tokens[i_begin].type === TokenType.BeginBinding) {
+                return `binding${i_binding++}`
+              }
                 for (let j = i_begin + 1; j < meta.tokens.length; j++) {
                     if (meta.tokens[j].type === TokenType.Path) {
                         return meta.tokens[j].value
