@@ -118,7 +118,18 @@ function Block(props: { block: Line, cursor?: number, mode: Mode, on_focus: bool
 }
 
 function Char(props: { in_token?: Token, char: string, cursor?: Cursor, on_focus: boolean }) {
-    const highlight = createMemo(() => props.in_token?.type === TokenType.BeginFact ? 'text-emerald-500' : 'text-gray-200')
+  const highlight = createMemo(() => {
+    switch (props.in_token?.type) {
+      case TokenType.BeginFact:
+        return 'text-emerald-500'
+      case TokenType.BeginIdea:
+        return 'text-amber-500'
+      case TokenType.BeginLegal:
+        return 'text-gray-300'
+      default:
+        return 'text-gray-400'
+    }
+  })
   return (<><span class='relative'>
     <Show when={props.cursor}>{cursor =>
       <Cursor cursor={cursor()} char={props.char} blink={props.on_focus} />
@@ -1026,7 +1037,8 @@ function createEditorStore(): EditorStore {
         break
       case 'v':
         navigator.clipboard.readText().then(_ => {
-          insert_bunch_of_text(_.replace('\r', ''))
+          let res = _.split('\r\n').join('\n')
+          insert_bunch_of_text(res)
         })
         break
       default:
