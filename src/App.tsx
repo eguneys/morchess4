@@ -245,7 +245,7 @@ function WithWorker() {
   }
 
   return (<>
-    <div class='flex h-screen bg-stone-200'>
+    <div class='flex h-screen bg-stone-200 px-1'>
       <div class='flex-2'>
         <div class='flex flex-col'>
           <div class='h-150'>

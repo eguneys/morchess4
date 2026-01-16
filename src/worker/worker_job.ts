@@ -1,4 +1,4 @@
-import { fen_pos, make_move_from_to, makeSan, move_c_to_Move, piece, piece_c_to_piece, Position, PositionManager, RelationManager, relations, square, WHITE, type MoveC } from 'hopefox'
+import { bindings, fen_pos, make_move_from_to, makeSan, move_c_to_Move, piece, piece_c_to_piece, Position, PositionManager, RelationManager, square, WHITE, type MoveC } from 'hopefox'
 import wasm_url from '../assets/wasm/hopefox.wasm?url'
 import { puzzles, type Puzzle } from './fixture'
 import { skips_900_0_100 } from './skips_fixtures'
@@ -28,7 +28,7 @@ const run_on_one_puzzle = (fen: FEN, program: string): RunOnOnePuzzleResult => {
     let pos = m.create_position(fen)
     let res, error
     try {
-        let res2 = relations(m, pos, program)
+        let res2 = bindings(m, pos, program)
         res = [...res2.values()]
     } catch (e) {
         if (e instanceof Error) {

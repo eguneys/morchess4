@@ -120,6 +120,8 @@ function Block(props: { block: Line, cursor?: number, mode: Mode, on_focus: bool
 function Char(props: { in_token?: Token, char: string, cursor?: Cursor, on_focus: boolean }) {
   const highlight = createMemo(() => {
     switch (props.in_token?.type) {
+      case TokenType.BeginBinding:
+        return 'text-cyan-500'
       case TokenType.BeginFact:
         return 'text-emerald-500'
       case TokenType.BeginIdea:
@@ -148,6 +150,7 @@ function Cursor(props: { cursor: Cursor, char: string, blink?: boolean }) {
 
 
 type ParseState = {
+    in_binding: boolean
     in_fact: boolean
     in_idea: boolean
     in_legal: boolean
@@ -155,13 +158,15 @@ type ParseState = {
 }
 
 function state_equal(a: ParseState, b: ParseState) {
+  if (a.in_binding === b.in_binding) {
     if (a.in_fact === b.in_fact) {
-        if (a.in_idea === b.in_idea) {
-            if (a.in_legal === b.in_legal) {
-                return true
-            }
+      if (a.in_idea === b.in_idea) {
+        if (a.in_legal === b.in_legal) {
+          return true
         }
+      }
     }
+  }
     return false
 }
 
@@ -175,6 +180,7 @@ enum TokenType {
     BeginFact = 'Fact',
     BeginIdea = 'Idea',
     BeginLegal = 'Legal',
+    BeginBinding = 'Binding',
     Path = 'Path',
     Newline = 'Newline'
 }
@@ -1127,7 +1133,7 @@ function createEditorStore(): EditorStore {
             if (!meta) {
               continue
             }
-            let i_begin = meta.tokens.findIndex(_ => _.type === TokenType.BeginFact || _.type === TokenType.BeginIdea || _.type === TokenType.BeginLegal)
+            let i_begin = meta.tokens.findIndex(_ => _.type === TokenType.BeginFact || _.type === TokenType.BeginIdea || _.type === TokenType.BeginLegal || _.type === TokenType.BeginBinding)
             if (i_begin !== -1) {
                 for (let j = i_begin + 1; j < meta.tokens.length; j++) {
                     if (meta.tokens[j].type === TokenType.Path) {
@@ -1155,6 +1161,7 @@ function createEditorStore(): EditorStore {
         in_fact: false,
         in_idea: false,
         in_legal: false,
+        in_binding: false,
         line: 0
     }
 
@@ -1257,8 +1264,9 @@ function createEditorStore(): EditorStore {
 
 function LineByLineParser(incoming_state: ParseState, line: string): [ParseState, LineMetadata] {
 
-    let parse_state = {
+    let parse_state: ParseState = {
         line: incoming_state.line + 1,
+        in_binding: incoming_state.in_binding,
         in_fact: incoming_state.in_fact,
         in_idea: incoming_state.in_idea,
         in_legal: incoming_state.in_legal
@@ -1354,6 +1362,10 @@ function LineByLineParser(incoming_state: ParseState, line: string): [ParseState
 
         ;[begin_char, end_char, value] = parse_word()
         if (begin_char !== end_char) {
+            if (value === 'binding') {
+                tokens.push({ begin_char, end_char, type: TokenType.BeginBinding, value })
+                parse_state.in_binding = true
+            }
             if (value === 'fact') {
                 tokens.push({ begin_char, end_char, type: TokenType.BeginFact, value })
                 parse_state.in_fact = true
