@@ -273,8 +273,8 @@ function createEditorStore(): EditorStore {
         set_state('lines', [line('hello')])
         set_state('i_line', 0)
         set_state('i_cursor', 0)
-      } else if (state.i_cursor >= state.lines[state.i_line].content.length) {
-        set_state('i_cursor', state.lines[state.i_line].content.length - 1)
+      } else if (state.i_cursor > state.lines[state.i_line].content.length) {
+        set_state('i_cursor', state.lines[state.i_line].content.length)
       }
 
       if (state.i_cursor < 0) {
@@ -367,7 +367,7 @@ function createEditorStore(): EditorStore {
       }
       set_state('lines',
         lines => lines.toSpliced(state.i_line, 1, inserted_line))
-        clamp_cursor_to_line()
+      clamp_cursor_to_line()
 
       set_state('mode', 'edit')
     })
@@ -405,6 +405,7 @@ function createEditorStore(): EditorStore {
 
     batch(() => {
       set_state('lines', state.i_line, 'content', content)
+      set_state('i_cursor', 999)
       clamp_cursor_to_line()
     })
   }
@@ -943,7 +944,7 @@ function createEditorStore(): EditorStore {
           let b = state.i_cursor + 1
           if (state.motion === 'change') {
             delete_line_between(a, b)
-            set_state('i_cursor', a)
+            set_state('i_cursor', b)
             set_state('mode', 'edit')
           }
           if (state.motion === 'delete') {
