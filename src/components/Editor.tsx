@@ -1,5 +1,5 @@
 import { makePersisted } from "@solid-primitives/storage"
-import { batch, createContext, createMemo, createSignal, For, onMount, Show, useContext, type JSX } from "solid-js"
+import { batch, createContext, createEffect, createMemo, createSignal, For, onMount, Show, useContext, type JSX } from "solid-js"
 import { createStore } from "solid-js/store"
 
 const gen_line_id = (() => {
@@ -103,7 +103,7 @@ function EditorWithParser(props: EditorProps) {
 function Block(props: { block: Line, cursor?: number, mode: Mode, on_focus: boolean }) {
 
   const [editor] = useEditor()
-  let chars = createMemo(() => props.block.content.split(''))
+  let chars = createMemo(() => props.block.content === '' ? [] : props.block.content.split(''))
   const meta = createMemo(() => editor.meta[props.block.id])
 
   const in_token = (i: number) => meta()?.tokens.find(_ => _.begin_char <= i && i < _.end_char)
@@ -112,7 +112,6 @@ function Block(props: { block: Line, cursor?: number, mode: Mode, on_focus: bool
       <For each={chars()}>{(char, i) =>
         <Char in_token={in_token(i())} char={char} cursor={i() === props.cursor ? { mode: props.mode } : undefined} on_focus={props.on_focus}></Char>
       }</For>
-
         <Char char={' '} cursor={chars().length === props.cursor ? { mode: props.mode } : undefined} on_focus={props.on_focus} ></Char>
     </div>
   </>)
@@ -1027,7 +1026,7 @@ function createEditorStore(): EditorStore {
         break
       case 'v':
         navigator.clipboard.readText().then(_ => {
-          insert_bunch_of_text(_)
+          insert_bunch_of_text(_.replace('\r', ''))
         })
         break
       default:
