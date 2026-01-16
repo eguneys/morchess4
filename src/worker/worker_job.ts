@@ -1,7 +1,7 @@
 import { fen_pos, make_move_from_to, makeSan, move_c_to_Move, piece, piece_c_to_piece, Position, PositionManager, RelationManager, relations, square, WHITE, type MoveC } from 'hopefox'
 import wasm_url from '../assets/wasm/hopefox.wasm?url'
 import { puzzles, type Puzzle } from './fixture'
-import { skips_200_0_44 } from './skips_fixtures'
+import { skips_900_0_100 } from './skips_fixtures'
 
 let m: PositionManager
 let pp: Puzzle[]
@@ -39,7 +39,7 @@ const run_on_one_puzzle = (fen: FEN, program: string): RunOnOnePuzzleResult => {
     return { relations: res?.map(_ => convert_manager_to_view(fen_pos(fen), _)), error }
 }
 
-let skips = skips_200_0_44
+let skips = skips_900_0_100
 
 export type PuzzleResult = {
     puzzle: Puzzle,
