@@ -1,5 +1,5 @@
 import { makePersisted } from "@solid-primitives/storage"
-import { batch, createContext, createEffect, createMemo, createSignal, For, onMount, Show, useContext, type JSX } from "solid-js"
+import { batch, createContext, createMemo, createSignal, For, onMount, Show, useContext, type JSX } from "solid-js"
 import { createStore } from "solid-js/store"
 
 const gen_line_id = (() => {
@@ -693,7 +693,7 @@ function createEditorStore(): EditorStore {
         })
 
         set_state('motion', null)
-        return
+        return true
       }
     }
 
